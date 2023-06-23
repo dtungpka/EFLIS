@@ -3,7 +3,7 @@ import numpy as np
 from scipy.integrate import ode as ode
 from matplotlib import cm
 from itertools import product
-
+from quantiphy import Quantity
 class Charge:
     def __init__(self, q, pos):
         self.q=q
@@ -19,8 +19,13 @@ class Charge:
 class Field:
     def __init__(self):
         self.charges=[]
+        self.min_charges= None
     def add_charge(self, q, pos):
         self.charges.append(Charge(q, pos))
+        if self.min_charges==None or abs(q)<self.min_charges:
+            self.min_charges=abs(q)
+    def delete_charge(self, index):
+        self.charges.pop(index)
     def E(self, x, y):
         Ex, Ey=0, 0
         for C in self.charges:
@@ -54,7 +59,7 @@ class Field:
                 dt=-dt
             # loop over field lines starting in different directions 
             # around current charge
-            lines_per_charge=num_lines * abs(C.q)
+            lines_per_charge=int(num_lines * abs(C.q)/self.min_charges)
             for alpha in np.linspace(0, 2*np.pi*(lines_per_charge-1)/lines_per_charge , lines_per_charge):
                 r=ode(self.E_dir)
                 r.set_integrator('vode')
@@ -92,6 +97,14 @@ class Field:
         self.xxs = np.array(xxs)
         self.yys = np.array(yys)
         self.vvs = np.array(vvs)
+
+def float_to_metric_prefix(x, unit='C'):
+    x = Quantity(x, unit)
+    return x
+def metric_prefix_to_float(x):
+    x = Quantity(x, 'C')
+    return x.real
+
 
 
 
