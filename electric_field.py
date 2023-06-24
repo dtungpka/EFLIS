@@ -17,6 +17,7 @@ class Charge:
         return self.q/((x-self.pos[0])**2+(y-self.pos[1])**2)**(0.5)
     
 class Field:
+    eps0 = 1
     def __init__(self):
         self.charges=[]
         self.min_charges= None
@@ -48,10 +49,16 @@ class Field:
         for C in self.charges:
             pos.append(C.pos)
         return pos
+    def get_min_charges(self):
+        self.min_charges= None
+        for C in self.charges:
+            if self.min_charges==None or abs(C.q)<self.min_charges:
+                self.min_charges=abs(C.q)
     def field_lines(self,scale, x_min, x_max, y_min, y_max, num_lines=16):
         R= scale
         self.xs,self.ys = [],[]
         self.start_charge = []
+        self.get_min_charges()
         for C in self.charges:
             # plot field lines starting in current charge
             dt=0.8*R
@@ -84,12 +91,12 @@ class Field:
                 self.ys.append(y)
                 self.start_charge.append(C.q)
         return self.xs,self.ys
-    def electric_potential(self,x_min,x_max,y_min,y_max):
+    def electric_potential(self,x_min,x_max,y_min,y_max,density=300,brightness=1.2):
         # calculate electric potential
         vvs = []
         xxs = []
         yys = []
-        numcalcv = 300
+        numcalcv = density #TODO: make this a parameter
         for xx,yy in product(np.linspace(x_min,x_max,numcalcv),np.linspace(y_min,y_max,numcalcv)):
             xxs.append(xx)
             yys.append(yy)
@@ -97,6 +104,12 @@ class Field:
         self.xxs = np.array(xxs)
         self.yys = np.array(yys)
         self.vvs = np.array(vvs)
+
+        #Normalize the potential
+        #self.vvs = self.vvs - np.min(self.vvs)
+        self.vvs = self.vvs / np.max(self.vvs) * brightness
+        return self.xxs,self.yys,self.vvs
+    
 
 def float_to_metric_prefix(x, unit='C'):
     x = Quantity(x, unit)
@@ -106,5 +119,64 @@ def metric_prefix_to_float(x):
     return x.real
 
 
+
+class NetForce:
+    def __init__(self,charge,field,epsilon=1):
+        self.charge=charge
+        self.field=field
+        self.epsilon=epsilon
+    def get_distance(self,charge1,charge2):
+        dis = np.sqrt((charge1.pos[0]-charge2.pos[0])**2+(charge1.pos[1]-charge2.pos[1])**2)
+        print(dis)
+        return  dis
+    def get_force(self,charge1,charge2):
+        return 9e9*(charge1.q*charge2.q)/((self.get_distance(charge1,charge2)**2)*self.epsilon)
+    def get_theta(self,charge1,charge2):
+        '''
+        return the angle between the line connecting two charges and the x axis in radian
+        '''
+        if charge2.pos[0]-charge1.pos[0]==0:
+            return np.pi/2 if charge2.pos[1]-charge1.pos[1]<0 else -np.pi/2
+        if charge2.pos[1]-charge1.pos[1]==0:
+            return 0 if charge2.pos[0]-charge1.pos[0]<0 else np.pi
+        return np.arctan((charge2.pos[1]-charge1.pos[1])/(charge2.pos[0]-charge1.pos[0]))
+    def get_force_axis(self,charge1,charge2):
+        '''
+        return the force in x and y axis
+        '''
+        theta=self.get_theta(charge1,charge2)
+        force=self.get_force(charge1,charge2)
+        return force*np.cos(theta),force*np.sin(theta)
+    def get_net_force(self):
+        '''
+        return the net force on the charge
+        '''
+        net_force_x=0
+        net_force_y=0
+        charges=self.field.charges
+        min_pos = 0
+        for charge in charges:
+            if min_pos < -abs(charge.pos[0]):
+                min_pos = abs(charge.pos[0]) + 1
+            if min_pos < -abs(charge.pos[1]):
+                min_pos = abs(charge.pos[1]) + 1
+        for charge in charges:
+            if charge!=self.charge:
+                temp_charge_1 = Charge(self.charge.q, [self.charge.pos[0] + min_pos, self.charge.pos[1] + min_pos])
+                temp_charge_2 = Charge(charge.q, [charge.pos[0] + min_pos, charge.pos[1] + min_pos])
+                force_x,force_y=self.get_force_axis(temp_charge_1,temp_charge_2)
+                net_force_x+=force_x
+                net_force_y+=force_y
+        return net_force_x,net_force_y
+    def get_net_force_magnitude(self):
+        return np.sqrt(self.get_net_force()[0]**2+self.get_net_force()[1]**2)
+    def get_net_force_theta(self):
+        if self.get_net_force()[0]==0:
+            return np.pi/2 if self.get_net_force()[1]<0 else -np.pi/2
+        if self.get_net_force()[1]==0:
+            return 0 if self.get_net_force()[0]<0 else np.pi
+        return np.arctan(self.get_net_force()[1]/self.get_net_force()[0])
+
+    
 
 

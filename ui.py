@@ -8,12 +8,15 @@ from matplotlib import cm
 from scipy.integrate import ode as ode
 from itertools import product
 from tkinter import ttk
+#import file dialog
+from tkinter import filedialog
+from sub_ui import EntryPopup, EditChargeWindow, SettingsWindow
 
 
 
 LANG = 0
 new_lang = 0
-ver = "0.1"
+ver = "0.9 Beta"
 #Create a class, act as main window, inherit from tk.Tk this windows can resize and the element
 #inside will resize too.
 
@@ -57,224 +60,28 @@ electric_field_cmap = {"Red and Blue":"RdBu_r",
 
 field_line_colors = {"Black":"k","Blue":"b","Green":"g","Red":"r","Cyan":"c","Magenta":"m","Yellow":"y","White":"w"}
 class settings:
-    border_limit_percent = 1
+    border_limit_percent = 5
     default_plot_scale = .8
     field_lines_scale = 0.01
     electric_potential_line_thickness = .5
     field_line_thickness = .5
     field_line_count = 5
     field_line_arrow_density = 0.5
-    potential_line_density = 8
+    potential_density = 400
     field_cmap = "RdBu_r"
     field_line_color = "k"
+    charge_size = 20
+
+    potential_line_density = 10
+    electric_field_density = 200
+
+    electric_field_brightness = 4
 
 
     show_charge_value = True
     show_field_line = True
-    show_potential_line = False
+    show_potential_line = True
     show_electric_field = True
-class EntryPopup(ttk.Entry):
-    def __init__(self, parent, iid, column, text,index,Field, **kw):
-        ttk.Style().configure('pad.TEntry', padding='1 1 1 1')
-        super().__init__(parent, style='pad.TEntry', **kw)
-        self.tv = parent
-        self.iid = iid
-        self.column = column
-        self.Field = Field
-        self.index = index
-        self.insert(0, text) 
-        # self['state'] = 'readonly'
-        # self['readonlybackground'] = 'white'
-        # self['selectbackground'] = '#1BA1E2'
-        self['exportselection'] = False
-
-        self.focus_force()
-        self.select_all()
-        self.bind("<Return>", self.on_return)
-        self.bind("<Control-a>", self.select_all)
-        self.bind("<Escape>", lambda *ignore: self.destroy())
-        self.bind("<FocusOut>", self.on_return)
-
-
-
-    def on_return(self, event):
-        rowid = self.tv.focus()
-        vals = self.tv.item(rowid, 'values')
-        vals = list(vals)
-        print(self.index)
-        try:
-            vals[self.column] = float(self.get())
-        except ValueError:
-            vals[self.column] = 0
-            self.tv.item(rowid, values=vals)
-            self.destroy()
-        
-        if vals[2] == '0' or vals[2] == '1 C':
-            vals[2] = ef.float_to_metric_prefix(1)
-        if len(self.Field.charges) == 0 or self.index >= len(self.Field.charges):
-            self.Field.add_charge(ef.metric_prefix_to_float(vals[2]),[float(vals[0]),float(vals[1])])
-        else:
-            self.Field.charges[self.index].pos = [float(vals[0]),float(vals[1])]
-            self.Field.charges[self.index].q = ef.metric_prefix_to_float(vals[2])
-        if self.column == 2:
-            vals[self.column] = ef.float_to_metric_prefix(vals[self.column])
-        self.tv.item(rowid, values=vals)
-        self.destroy()
-
-
-    def select_all(self, *ignore):
-        ''' Set selection on the whole text '''
-        self.selection_range(0, 'end')
-
-        # returns 'break' to interrupt default key-bindings
-        return 'break'
-class EditChargeWindow(tk.Toplevel):
-    def __init__(self,master,Field: ef.Field):
-        super().__init__(master)
-        self.Field = Field
-        self.title("Edit Charge")
-        self.geometry("600x400")
-        self.resizable(False,True)
-        self.protocol("WM_DELETE_WINDOW",self.close)
-        
-
-
-        #Create a frame to contain:
-        #Below it is a table to show all charges, has 3 columns: x, y, q
-        #Below is 2 button: Show Field force, Close
-        #The table is scrollable
-        #The table is editable,  when the user click on a row, the corresponding charge will be selected, and Delete button will be enabled
-        #The first entry is (new), when user click on it, it create new charge
-
-        self.table_frame = tk.Frame(self)
-        self.table_frame.pack(side=tk.TOP,fill=tk.BOTH,expand=1)
-        self.table_frame.grid_columnconfigure(0,weight=1)
-        self.table_frame.grid_columnconfigure(1,weight=1)
-        self.table_frame.grid_columnconfigure(2,weight=1)
-        
-        self.table = ttk.Treeview(self.table_frame,columns=("x","y","q"),show="headings")
-        self.table.heading("x",text="x")
-        self.table.heading("y",text="y")
-        self.table.heading("q",text="q")
-        self.table.column("x",width=100)
-        self.table.column("y",width=100)
-        self.table.column("q",width=100)
-        self.table.grid(row=0,column=0,columnspan=3,sticky=tk.NSEW)
-        self.table.bind("<ButtonRelease-1>",self.table_click)
-        self.table.bind("<Double-Button-1>",self.table_double_click)
-        self.table.bind("<Return>",self.table_double_click)
-        self.table.bind("<Delete>",self.delete_charge)
-        self.table.bind("<BackSpace>",self.delete_charge)
-        
-        self.table_scrollbar = ttk.Scrollbar(self.table_frame,orient=tk.VERTICAL,command=self.table.yview)
-        self.table_scrollbar.grid(row=0,column=3,sticky=tk.NS)
-        self.table.configure(yscrollcommand=self.table_scrollbar.set)
-
-       #Add a new charge, when user double click on it or press enter, a new charge will be added
-        self.table.insert("",tk.END,values=["(new)"," "," "])
-        self.table.focus(self.table.get_children()[-1])
-        self.table.see(self.table.get_children()[-1])
-
-        self.table_button_frame = tk.Frame(self)
-        self.table_button_frame.pack(side=tk.BOTTOM,fill=tk.X)
-        self.table_button_frame.grid_columnconfigure(0,weight=1)
-        self.table_button_frame.grid_columnconfigure(1,weight=1)
-
-        self.show_field_button = tk.Button(self.table_button_frame,text="Apply",command=self.close)
-        self.show_field_button.grid(row=0,column=0,sticky=tk.NSEW)
-        self.close_button = tk.Button(self.table_button_frame,text="Close",command=self.close)
-        self.close_button.grid(row=0,column=1,sticky=tk.NSEW)
-
-        self.selected_charge = None
-        self.selected_charge_index = None
-        self.selected_charge_id = None
-
-        self.update_table()
-    def update_table(self):
-        datas = self.Field.charges
-        self.table.delete(*self.table.get_children())
-        for charge in datas:
-            self.table.insert("",tk.END,values=[charge.pos[0],charge.pos[1],ef.float_to_metric_prefix(charge.q)])
-        self.table.insert("",tk.END,values=["(new)"," "," "])
-
-    def table_click(self,event):
-        self.selected_charge = self.table.item(self.table.focus())["values"]
-        self.selected_charge_index = self.table.index(self.table.focus())
-        self.selected_charge_id = self.table.focus()
-        if self.selected_charge[0] != "(new)":
-            #Allow delete
-            self.table.bind("<Delete>",self.delete_charge)
-            self.table.bind("<BackSpace>",self.delete_charge)
-        else:
-            #Disallow delete
-            self.table.unbind("<Delete>")
-            self.table.unbind("<BackSpace>")
-    def table_double_click(self,event):
-        if self.selected_charge[0] == "(new)":
-            #Create new charge
-            self.table.item(self.selected_charge_id,values=[0,0,'1 C'])
-            self.selected_charge = [0,0,0]
-            self.selected_charge_index = self.table.index(self.selected_charge_id)
-            self.selected_charge_id = self.table.focus()
-            self.table.focus(self.selected_charge_id)
-            self.table.see(self.selected_charge_id)
-            self.table.bind("<Delete>",self.delete_charge)
-            self.table.bind("<BackSpace>",self.delete_charge)
-
-            #insert (new) again
-            self.table.insert("",tk.END,values=["(new)"," "," "])
-        else:
-            #Edit charge
-            self.edit_charge(event)
-    def delete_charge(self,event):
-        if self.selected_charge[0] != "(new)":
-            self.table.delete(self.selected_charge_id)
-            self.Field.delete_charge(self.selected_charge_index)
-            self.selected_charge = None
-            self.selected_charge_index = None
-            self.selected_charge_id = None
-            self.table.unbind("<Delete>")
-            self.table.unbind("<BackSpace>")
-    def edit_charge(self,event):
-        ''' Executed, when a row is double-clicked. Opens 
-        read-only EntryPopup above the item's column, so it is possible
-        to select text '''
-
-        # close previous popups
-        try:  # in case there was no previous popup
-            self.entryPopup.destroy()
-        except AttributeError:
-            pass
-
-        # what row and column was clicked on
-        rowid = self.table.identify_row(event.y)
-        column = self.table.identify_column(event.x)
-
-        # handle exception when header is double click
-        if not rowid:
-            return
-
-        # get column position info
-        x,y,width,height = self.table.bbox(rowid, column)
-
-        # y-axis offset
-        pady = height // 2
-
-        # place Entry popup properly
-        text = self.table.item(rowid, 'values')[int(column[1:])-1]
-        if int(column[1:])-1 == 2:
-            text = str(ef.metric_prefix_to_float(text))
-        self.table.entryPopup = EntryPopup(self.table, rowid, int(column[1:])-1, text,self.selected_charge_index,self.Field)
-        self.table.entryPopup.place(x=x, y=y+pady, width=width, height=height, anchor='w')
-    def show_field(self):
-        pass
-    def close(self):
-        self.master.setup_plot()
-        self.master.setup_ef()
-        self.master.update_plot()
-        self.master.refresh_plot()
-        self.destroy()
-        
 
         
 
@@ -287,7 +94,9 @@ class MainWindow(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
         self.title("Electric Field Line Interactive Simulator (EFLIS) v" + ver)
-        self.geometry("800x600")
+        #set icon to icon.ico
+        self.iconbitmap("icon.ico")
+        self.geometry("860x600")
         self.resizable(True, True)
         self.view_setting_buffer = [tk.IntVar(), tk.IntVar(), tk.IntVar(), tk.IntVar()]
         #set the view settings to the default value
@@ -297,6 +106,8 @@ class MainWindow(tk.Tk):
         self.view_setting_buffer[3].set(settings.show_charge_value)
         self.create_widgets()
         self.EF = ef.Field()
+        self.EF.add_charge(2, [0,0])
+        self.EF.add_charge(-2, [2,0])
         self.setup_plot()
         self.setup_ef()
         self.update_plot()
@@ -305,11 +116,10 @@ class MainWindow(tk.Tk):
     def setup_ef(self):
         
         ##TODO: Need review
-        #self.EF.add_charge(1, [0,0])
-        #self.EF.add_charge(-2, [2,0])
+        
         self.set_border()
         self.EF.field_lines(settings.field_lines_scale,self.x_min, self.x_max, self.y_min, self.y_max, settings.field_line_count)
-        self.EF.electric_potential(self.x_min, self.x_max, self.y_min, self.y_max)
+        self.EF.electric_potential(self.x_min, self.x_max, self.y_min, self.y_max, settings.potential_density, settings.electric_field_brightness)
     def setup_plot(self):
         #self.fig = plt.figure(figsize=(5.5, 4.5),facecolor="w")
         #self.ax = self.fig.add_subplot(111)
@@ -353,7 +163,7 @@ class MainWindow(tk.Tk):
         # plot point charges
         for C in self.EF.charges:
             c = C.q/self.EF.min_charges
-            size = 8*np.sqrt(abs(c))
+            size = settings.charge_size*np.sqrt(abs(c))
             self.ax.plot(C.pos[0], C.pos[1], 'ro' if c > 0 else 'bo', ms=size)
             if settings.show_charge_value:
                 #plot to make the text in the middle of the point
@@ -369,13 +179,12 @@ class MainWindow(tk.Tk):
         xxs = self.EF.xxs
         yys = self.EF.yys
         # plot electric potential
-        clim0,clim1 = -settings.potential_line_density,settings.potential_line_density
-        vvs[np.where(vvs<clim0)] = clim0*0.999999 # to avoid error
-        vvs[np.where(vvs>clim1)] = clim1*0.999999 # to avoid error
+        vvs[np.where(vvs<=-1)] = -0.999999 # to avoid error
+        vvs[np.where(vvs>=1)] = 0.999999 # to avoid error
         if settings.show_potential_line:
-            self.ax.tricontour(xxs,yys,vvs,10,linewidths=settings.electric_potential_line_thickness,colors="0.3")
+            self.ax.tricontour(xxs,yys,vvs,settings.potential_line_density,linewidths=settings.electric_potential_line_thickness,colors="0.3")
         if settings.show_electric_field:
-            self.ax.tricontourf(xxs,yys,vvs,100,cmap= settings.field_cmap) #TODO:cm.jet
+            self.ax.tricontourf(xxs,yys,vvs,settings.electric_field_density,cmap= settings.field_cmap) #TODO:cm.jet
         #cbar = self.ax.figure.colorbar(self.ax.collections[0])
         #cbar.set_ticks(np.linspace(clim0,clim1,5))
         #cbar.set_label("Electric Potential")
@@ -521,7 +330,12 @@ class MainWindow(tk.Tk):
     def save(self):
         pass
     def export(self):
+        #export the plot as a png file, choose the file name and location
+        file_name = filedialog.asksaveasfilename(defaultextension=".png", filetypes=[("PNG file", "*.png")])
+        if file_name:
+            self.fig.savefig(file_name)
         pass
+
     def about(self):
         pass
     
