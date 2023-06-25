@@ -60,24 +60,27 @@ electric_field_cmap = {"Red and Blue":"RdBu_r",
 
 field_line_colors = {"Black":"k","Blue":"b","Green":"g","Red":"r","Cyan":"c","Magenta":"m","Yellow":"y","White":"w"}
 class settings:
+    #Dropdown menu values
+    field_cmap = "RdBu_r"
+    field_line_color = "k"
+
+    #Perfermance settings
     border_limit_percent = 5
+    potential_line_density = 10
+    electric_field_density = 200
+    field_line_count = 5
+    field_line_arrow_density = 0.5
+    potential_density = 400
+
+    #Plot parameters
+    electric_field_brightness = 4
+    charge_size = 20
     default_plot_scale = .8
     field_lines_scale = 0.01
     electric_potential_line_thickness = .5
     field_line_thickness = .5
-    field_line_count = 5
-    field_line_arrow_density = 0.5
-    potential_density = 400
-    field_cmap = "RdBu_r"
-    field_line_color = "k"
-    charge_size = 20
 
-    potential_line_density = 10
-    electric_field_density = 200
-
-    electric_field_brightness = 4
-
-
+    #View settings
     show_charge_value = True
     show_field_line = True
     show_potential_line = True
@@ -92,14 +95,188 @@ class SettingsWindow(tk.Toplevel):
     def __init__(self, master=None) -> None:
         super().__init__(master=master)
         self.title("Settings")
-        self.geometry("400x300")
+        self.geometry("1000x800")
         self.resizable(False, False)
         self.create_widgets()
         pass
     def create_widgets(self):
         #The settings window have 2 part, the upper is the Visual settings,lower is  Perfermance settings.
-        #The Visual settings have 2 part, the left is the color settings, the right is the view settings.
+        #The Visual settings have 2 part, the left is the color settings, the right is the Plot parameters.
+        notebook = ttk.Notebook(self)
+        notebook.pack(fill='both', expand=True)
+        
+        # Create the Visual settings tab
+        visual_tab = ttk.Frame(notebook)
+        notebook.add(visual_tab, text='Visual')
+        
+        # Add widgets to the Visual settings tab
+        #visual_label = ttk.Label(visual_tab, text='Visual settings')
+        #visual_label.pack(pady=10)
+        
+        # Create the Performance settings tab
+        performance_tab = ttk.Frame(notebook)
+        notebook.add(performance_tab, text='Performance')
+        
+        #TODO: Add eps0 and reset
+        # Add widgets to the Performance settings tab
+        #performance_label = ttk.Label(performance_tab, text='Performance settings')
+        #performance_label.pack(pady=10)
+        #The Visual settings is a frame with label "Visual settings"
+        self.visual_settings_frame = ttk.LabelFrame(visual_tab, text="Visual settings")
+        self.visual_settings_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        #The Peromfermance settings is a frame with label "Performance settings"
+        self.performance_settings_frame = ttk.LabelFrame(performance_tab, text="Performance settings")
+        self.performance_settings_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+        #The color settings is a frame with label "Color settings" inside the Visual settings frame
+        self.color_settings_frame = ttk.LabelFrame(self.visual_settings_frame, text="Color settings")
+        #Pack the color settings frame to the left
+        self.color_settings_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        #The plot parameters is a frame with label "Plot parameters" inside the Visual settings frame
+        self.plot_parameters_frame = ttk.LabelFrame(self.visual_settings_frame, text="Plot parameters")
+        #Pack the plot parameters frame to the right
+        self.plot_parameters_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
+
+        #Add 2 dropdown menu to the color settings frame
+        #The first dropdown menu is for the electric field color
+        self.electric_field_color_label = ttk.Label(self.color_settings_frame, text="Electric field color:")
+        self.electric_field_color_label.pack(side=tk.TOP, fill=tk.X, expand=True)
+        self.electric_field_color_dropdown = ttk.Combobox(self.color_settings_frame, values=list(electric_field_cmap.keys()), state="readonly")
+        self.electric_field_color_dropdown.pack(side=tk.TOP, fill=tk.X, expand=True)
+        self.electric_field_color_dropdown.current(list(electric_field_cmap.values()).index(settings.field_cmap))
+        #The second dropdown menu is for the field line color
+        self.field_line_color_label = ttk.Label(self.color_settings_frame, text="Field line color:")
+        self.field_line_color_label.pack(side=tk.TOP, fill=tk.X, expand=True)
+        self.field_line_color_dropdown = ttk.Combobox(self.color_settings_frame, values=list(field_line_colors.keys()), state="readonly")
+        self.field_line_color_dropdown.pack(side=tk.TOP, fill=tk.X, expand=True)
+        self.field_line_color_dropdown.current(list(field_line_colors.values()).index(settings.field_line_color))
+
+        #Add sliders to the plot parameters frame, which is total 6 sliders
+        #The first slider is for the electric field brightness
+        self.electric_field_brightness_label = ttk.Label(self.plot_parameters_frame, text="Electric field brightness:")
+        self.electric_field_brightness_label.pack(side=tk.TOP, fill=tk.X, expand=True)
+        #Step of the slider is 0.1, from 0.1 to 10
+        self.electric_field_brightness_slider = ttk.Scale(self.plot_parameters_frame, from_=0.1, to=10, orient=tk.HORIZONTAL)
+        self.electric_field_brightness_slider.pack(side=tk.TOP, fill=tk.X, expand=True)
+        self.electric_field_brightness_slider.set(settings.electric_field_brightness)
+        #The second slider is for the charge size
+        self.charge_size_label = ttk.Label(self.plot_parameters_frame, text="Charge size:")
+        self.charge_size_label.pack(side=tk.TOP, fill=tk.X, expand=True)
+        self.charge_size_slider = ttk.Scale(self.plot_parameters_frame, from_=1, to=100, orient=tk.HORIZONTAL)
+        self.charge_size_slider.pack(side=tk.TOP, fill=tk.X, expand=True)
+        self.charge_size_slider.set(settings.charge_size)
+        #The third slider is for the default plot scale
+        self.default_plot_scale_label = ttk.Label(self.plot_parameters_frame, text="Default plot scale:")
+        self.default_plot_scale_label.pack(side=tk.TOP, fill=tk.X, expand=True)
+        self.default_plot_scale_slider = ttk.Scale(self.plot_parameters_frame, from_=.2, to=3, orient=tk.HORIZONTAL)
+        self.default_plot_scale_slider.pack(side=tk.TOP, fill=tk.X, expand=True)
+        self.default_plot_scale_slider.set(settings.default_plot_scale)
+        #The fourth slider is for the field line scale
+        self.field_line_scale_label = ttk.Label(self.plot_parameters_frame, text="Field line scale:")
+        self.field_line_scale_label.pack(side=tk.TOP, fill=tk.X, expand=True)
+        self.field_line_scale_slider = ttk.Scale(self.plot_parameters_frame, from_=0.01, to=2, orient=tk.HORIZONTAL)
+        self.field_line_scale_slider.pack(side=tk.TOP, fill=tk.X, expand=True)
+        self.field_line_scale_slider.set(settings.field_lines_scale)
+        #The fifth slider is for the electric_potential_line_thickness
+        self.electric_potential_line_thickness_label = ttk.Label(self.plot_parameters_frame, text="Electric potential line thickness:")
+        self.electric_potential_line_thickness_label.pack(side=tk.TOP, fill=tk.X, expand=True)
+        self.electric_potential_line_thickness_slider = ttk.Scale(self.plot_parameters_frame, from_=0.1, to=10, orient=tk.HORIZONTAL)
+        self.electric_potential_line_thickness_slider.pack(side=tk.TOP, fill=tk.X, expand=True)
+        self.electric_potential_line_thickness_slider.set(settings.electric_potential_line_thickness)
+        #The sixth slider is for the field line thickness
+        self.field_line_thickness_label = ttk.Label(self.plot_parameters_frame, text="Field line thickness:")
+        self.field_line_thickness_label.pack(side=tk.TOP, fill=tk.X, expand=True)
+        self.field_line_thickness_slider = ttk.Scale(self.plot_parameters_frame, from_=0.1, to=10, orient=tk.HORIZONTAL)
+        self.field_line_thickness_slider.pack(side=tk.TOP, fill=tk.X, expand=True)
+        self.field_line_thickness_slider.set(settings.field_line_thickness)
+
+        #Add sliders to the performence settings frame, which is total 6 sliders
+        #The first slider is for the border_limit_percent
+        self.border_limit_percent_label = ttk.Label(self.performance_settings_frame, text="Border limit:")
+        self.border_limit_percent_label.pack(side=tk.TOP, fill=tk.X, expand=True)
+        self.border_limit_percent_slider = ttk.Scale(self.performance_settings_frame, from_=1, to=10, orient=tk.HORIZONTAL)
+        self.border_limit_percent_slider.pack(side=tk.TOP, fill=tk.X, expand=True)
+        self.border_limit_percent_slider.set(settings.border_limit_percent)
+        #The second slider is for the potential_line_density
+        self.potential_line_density_label = ttk.Label(self.performance_settings_frame, text="Potential line density:")
+        self.potential_line_density_label.pack(side=tk.TOP, fill=tk.X, expand=True)
+        self.potential_line_density_slider = ttk.Scale(self.performance_settings_frame, from_=1, to=1000, orient=tk.HORIZONTAL)
+        self.potential_line_density_slider.pack(side=tk.TOP, fill=tk.X, expand=True)
+        self.potential_line_density_slider.set(settings.potential_line_density)
+        #The third slider is for the potential_density
+        self.potential_density_label = ttk.Label(self.performance_settings_frame, text="Potential density:")
+        self.potential_density_label.pack(side=tk.TOP, fill=tk.X, expand=True)  
+        self.potential_density_slider = ttk.Scale(self.performance_settings_frame, from_=1, to=1000, orient=tk.HORIZONTAL)
+        self.potential_density_slider.pack(side=tk.TOP, fill=tk.X, expand=True)
+        self.potential_density_slider.set(settings.potential_density)
+        #The fourth slider is for the electric_field_density
+        self.electric_field_density_label = ttk.Label(self.performance_settings_frame, text="Electric field density:")
+        self.electric_field_density_label.pack(side=tk.TOP, fill=tk.X, expand=True)
+        self.electric_field_density_slider = ttk.Scale(self.performance_settings_frame, from_=1, to=1000, orient=tk.HORIZONTAL)
+        self.electric_field_density_slider.pack(side=tk.TOP, fill=tk.X, expand=True)
+        self.electric_field_density_slider.set(settings.electric_field_density)
+        #The fifth slider is for the field_line_count
+        self.field_line_count_label = ttk.Label(self.performance_settings_frame, text="Number of field lines:")
+        self.field_line_count_label.pack(side=tk.TOP, fill=tk.X, expand=True)
+        self.field_line_count_slider = ttk.Scale(self.performance_settings_frame, from_=1, to=1000, orient=tk.HORIZONTAL)
+        self.field_line_count_slider.pack(side=tk.TOP, fill=tk.X, expand=True)
+        self.field_line_count_slider.set(settings.field_line_count)
+        #The sixth slider is for the field_line_arrow_density
+        self.field_line_arrow_density_label = ttk.Label(self.performance_settings_frame, text="Field line arrow density:")
+        self.field_line_arrow_density_label.pack(side=tk.TOP, fill=tk.X, expand=True)
+        self.field_line_arrow_density_slider = ttk.Scale(self.performance_settings_frame, from_=1, to=1000, orient=tk.HORIZONTAL)
+        self.field_line_arrow_density_slider.pack(side=tk.TOP, fill=tk.X, expand=True)
+        self.field_line_arrow_density_slider.set(settings.field_line_arrow_density)
+         
+        #Add a button to the settings frame, which is for saving the settings, put it at the bottom, alongwith the reset button
+        #Create a frame for the save button
+        self.save_button_frame = ttk.Frame(self)
+        self.save_button_frame.pack(side=tk.BOTTOM, fill=tk.X, expand=False)
+        #Create the save button
+        self.save_button = ttk.Button(self.save_button_frame, text="Save", command=self.save_settings)
+        self.save_button.pack(side=tk.BOTTOM, fill=tk.X, expand=False, padx=5, pady=5)
+
+        #Add a button to the settings frame, which is for resetting the settings, put it at the bottom, alongwith the save button
+        #Create a frame for the reset button
+        self.reset_button_frame = ttk.Frame(self)
+        self.reset_button_frame.pack(side=tk.BOTTOM, fill=tk.X, expand=False)
+        #Create the reset button
+        self.reset_button = ttk.Button(self.reset_button_frame, text="Reset", command=self.reset_settings)
+        self.reset_button.pack(side=tk.BOTTOM, fill=tk.X, expand=False, padx=5, pady=5)
+
+
+
+
+    def save_settings(self):
+        #Save the settings to the settings.py file
+        settings.border_limit_percent = self.border_limit_percent_slider.get()
+        settings.potential_line_density = self.potential_line_density_slider.get()
+        settings.potential_density = self.potential_density_slider.get()
+        settings.electric_field_density = self.electric_field_density_slider.get()
+        settings.field_line_count = self.field_line_count_slider.get()
+        settings.field_line_arrow_density = self.field_line_arrow_density_slider.get()
+        settings.electric_field_brightness = self.electric_field_brightness_slider.get()
+        settings.charge_size = self.charge_size_slider.get()
+        settings.default_plot_scale = self.default_plot_scale_slider.get()
+        settings.field_lines_scale = self.field_line_scale_slider.get()
+        settings.electric_potential_line_thickness = self.electric_potential_line_thickness_slider.get()
+        settings.field_line_thickness = self.field_line_thickness_slider.get()
+
+        self.master.update_plot()
+    def reset_settings(self):
         pass
+
+
+    
+        
+
+        
+
+
+
+
+
+
+        
 
 
 class MainWindow(tk.Tk):
@@ -368,7 +545,8 @@ class MainWindow(tk.Tk):
     def save(self):
         pass
     def settings(self):
-        pass
+        settings_window = SettingsWindow(self)
+
     def export(self):
         #export the plot as a png file, choose the file name and location
         file_name = filedialog.asksaveasfilename(defaultextension=".png", filetypes=[("PNG file", "*.png")])
