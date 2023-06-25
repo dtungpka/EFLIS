@@ -16,7 +16,7 @@ from sub_ui import EntryPopup, EditChargeWindow, SettingsWindow
 
 LANG = 0
 new_lang = 0
-ver = "0.9 Beta"
+ver = "0.91"
 #Create a class, act as main window, inherit from tk.Tk this windows can resize and the element
 #inside will resize too.
 
@@ -82,12 +82,24 @@ class settings:
     show_field_line = True
     show_potential_line = True
     show_electric_field = True
+    show_grid = True
 
         
 
 
     
-
+class SettingsWindow(tk.Toplevel):
+    def __init__(self, master=None) -> None:
+        super().__init__(master=master)
+        self.title("Settings")
+        self.geometry("400x300")
+        self.resizable(False, False)
+        self.create_widgets()
+        pass
+    def create_widgets(self):
+        #The settings window have 2 part, the upper is the Visual settings,lower is  Perfermance settings.
+        #The Visual settings have 2 part, the left is the color settings, the right is the view settings.
+        pass
 
 
 class MainWindow(tk.Tk):
@@ -98,12 +110,13 @@ class MainWindow(tk.Tk):
         self.iconbitmap("icon.ico")
         self.geometry("860x600")
         self.resizable(True, True)
-        self.view_setting_buffer = [tk.IntVar(), tk.IntVar(), tk.IntVar(), tk.IntVar()]
+        self.view_setting_buffer = [tk.IntVar(), tk.IntVar(), tk.IntVar(), tk.IntVar(), tk.IntVar()]
         #set the view settings to the default value
         self.view_setting_buffer[0].set(settings.show_potential_line)
         self.view_setting_buffer[1].set(settings.show_electric_field)
         self.view_setting_buffer[2].set(settings.show_charge_value)
         self.view_setting_buffer[3].set(settings.show_charge_value)
+        self.view_setting_buffer[4].set(settings.show_grid)
         self.create_widgets()
         self.EF = ef.Field()
         self.EF.add_charge(2, [0,0])
@@ -135,6 +148,14 @@ class MainWindow(tk.Tk):
         self.ax.clear()
         if len(self.EF.charges) == 0:
             return
+        
+        #if show grid is true, plot the grid
+        if settings.show_grid:
+            self.ax.grid(True)
+        else:
+            self.ax.grid(False)
+
+
         # plot field line
         if settings.show_field_line:
             for c ,x, y in zip(self.EF.start_charge,self.EF.xs,self.EF.ys):
@@ -188,8 +209,8 @@ class MainWindow(tk.Tk):
         #cbar = self.ax.figure.colorbar(self.ax.collections[0])
         #cbar.set_ticks(np.linspace(clim0,clim1,5))
         #cbar.set_label("Electric Potential")
-        self.ax.set_xlim(self.default_x_min, self.default_x_max)
-        self.ax.set_ylim(self.default_y_min, self.default_y_max)
+        self.ax.set_xlim(1.75*self.default_x_min, 1.75*self.default_x_max)
+        self.ax.set_ylim(self.default_y_min,self.default_y_max)
    
     def set_border(self):  
         #Limit the plot area
@@ -240,6 +261,7 @@ class MainWindow(tk.Tk):
         self.file_menu.add_command(label="Open", command=self.open)
         self.file_menu.add_command(label="Save", command=self.save)
         self.file_menu.add_command(label="Export", command=self.export)
+
         self.file_menu.add_separator()
         self.file_menu.add_command(label="Exit", command=self.quit)
         self.menu_bar.add_cascade(label="File", menu=self.file_menu)
@@ -249,7 +271,16 @@ class MainWindow(tk.Tk):
         self.view_menu.add_checkbutton(label="Electric Field", onvalue=1, offvalue=0, variable=self.view_setting_buffer[1], command=self.view_toggle)
         self.view_menu.add_checkbutton(label="Charge Value", onvalue=1, offvalue=0, variable=self.view_setting_buffer[2], command=self.view_toggle)
         self.view_menu.add_checkbutton(label="Field Line", onvalue=1, offvalue=0, variable=self.view_setting_buffer[3], command=self.view_toggle)
+        self.view_menu.add_checkbutton(label="Show Grid", onvalue=1, offvalue=0, variable=self.view_setting_buffer[4], command=self.view_toggle)
         self.menu_bar.add_cascade(label="View", menu=self.view_menu)
+
+        #Settings
+        self.settings_menu = tk.Menu(self.menu_bar, tearoff=0)
+        self.settings_menu.add_command(label="Settings", command=self.settings)
+        self.menu_bar.add_cascade(label="Settings", menu=self.settings_menu)
+
+
+
         #Help
         self.help_menu = tk.Menu(self.menu_bar, tearoff=0)
         self.help_menu.add_command(label="About", command=self.about)
@@ -284,11 +315,17 @@ class MainWindow(tk.Tk):
         #Create a toggle button to show/hide the Field line, call self.view_toggle when clicked
         self.show_field_line_button = tk.Checkbutton(self.view_settings_frame, text="Show Field Line",  variable= self.view_setting_buffer[3], command=self.view_toggle)
         self.show_field_line_button.pack(fill=tk.X)
+        #Create a toggle button to show/hide the grid, call self.view_toggle when clicked
+        self.show_grid_button = tk.Checkbutton(self.view_settings_frame, text="Show Grid", variable= self.view_setting_buffer[4], command=self.view_toggle)
+        self.show_grid_button.pack(fill=tk.X)
         #Create a button to update the plot, put it in the view_settings_frame
         self.update_plot_button = tk.Button(self.view_settings_frame, text="Update Plot", command=self.refresh_plot)
         self.update_plot_button.pack()
         
-
+        #Padding it with a separator
+        self.separator = ttk.Separator(self.control_panel, orient="horizontal")
+        self.separator.pack(fill=tk.X, pady=20, padx=5)
+        
         #Create a Charges button to open the charge setting window
         self.charges_button = tk.Button(self.control_panel, text="Charges", command=self.open_charge_setting_window)
         self.charges_button.pack(fill=tk.X)
@@ -320,6 +357,7 @@ class MainWindow(tk.Tk):
         settings.show_electric_field = self.view_setting_buffer[1].get() == 1
         settings.show_charge_value = self.view_setting_buffer[2].get() == 1
         settings.show_field_line = self.view_setting_buffer[3].get() == 1
+        settings.show_grid = self.view_setting_buffer[4].get() == 1
         pass
     def open_charge_setting_window(self):
         charge_window = EditChargeWindow(self,self.EF)
@@ -328,6 +366,8 @@ class MainWindow(tk.Tk):
     def open(self):
         pass
     def save(self):
+        pass
+    def settings(self):
         pass
     def export(self):
         #export the plot as a png file, choose the file name and location

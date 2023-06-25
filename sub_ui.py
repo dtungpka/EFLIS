@@ -301,7 +301,7 @@ class EditChargeWindow(tk.Toplevel):
             if fy != 0:
                 self.axes.annotate("", xy=(0, fy), xytext=(0, 0),arrowprops=dict(arrowstyle="->",color="red"))
             self.axes.annotate("", xy=(fx, fy), xytext=(0, 0),arrowprops=dict(arrowstyle="->"))
-
+            self.Field.get_min_charges()
             size = 20 * math.sqrt(abs(charge.q/self.Field.min_charges))
             #Draw the charge, if the charge > 0, draw a +, else draw a -
             if charge.q > 0:

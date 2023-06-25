@@ -130,16 +130,22 @@ class NetForce:
         print(dis)
         return  dis
     def get_force(self,charge1,charge2):
-        return 9e9*(charge1.q*charge2.q)/((self.get_distance(charge1,charge2)**2)*self.epsilon)
-    def get_theta(self,charge1,charge2):
+        return 9e9*abs(charge1.q*charge2.q)/((self.get_distance(charge1,charge2)**2)*self.epsilon)
+    def get_theta(self, charge1, charge2):
         '''
-        return the angle between the line connecting two charges and the x axis in radian
+        Return the angle between the line connecting two charges and the x axis in radians.
+        If the charges have opposite signs, the angle points towards charge2, otherwise it opposes it.
         '''
-        if charge2.pos[0]-charge1.pos[0]==0:
-            return np.pi/2 if charge2.pos[1]-charge1.pos[1]<0 else -np.pi/2
-        if charge2.pos[1]-charge1.pos[1]==0:
-            return 0 if charge2.pos[0]-charge1.pos[0]<0 else np.pi
-        return np.arctan((charge2.pos[1]-charge1.pos[1])/(charge2.pos[0]-charge1.pos[0]))
+        delta_x = charge2.pos[0] - charge1.pos[0]
+        delta_y = charge2.pos[1] - charge1.pos[1]
+        if delta_x == 0:
+            return np.pi / 2 if delta_y > 0 else -np.pi / 2
+        theta = np.arctan(delta_y / delta_x)
+        if charge1.q * charge2.q < 0:
+            theta += np.pi if delta_x < 0 else 0
+        else:
+            theta += np.pi if delta_x > 0 else 0
+        return theta
     def get_force_axis(self,charge1,charge2):
         '''
         return the force in x and y axis
@@ -171,11 +177,12 @@ class NetForce:
     def get_net_force_magnitude(self):
         return np.sqrt(self.get_net_force()[0]**2+self.get_net_force()[1]**2)
     def get_net_force_theta(self):
-        if self.get_net_force()[0]==0:
-            return np.pi/2 if self.get_net_force()[1]<0 else -np.pi/2
-        if self.get_net_force()[1]==0:
-            return 0 if self.get_net_force()[0]<0 else np.pi
-        return np.arctan(self.get_net_force()[1]/self.get_net_force()[0])
+        nf = self.get_net_force()
+        if nf[0]==0:
+            return (np.pi/2 if nf[1]>0 else -np.pi/2)
+        if nf[1]==0:
+            return (0 if nf[0]>0 else np.pi )
+        return np.arctan(nf[1]/nf[0])
 
     
 
