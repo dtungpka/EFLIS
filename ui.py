@@ -10,13 +10,21 @@ from itertools import product
 from tkinter import ttk
 #import file dialog
 from tkinter import filedialog
-from sub_ui import EntryPopup, EditChargeWindow, SettingsWindow
+from sub_ui import EntryPopup, EditChargeWindow
+from tkinter import messagebox
+#Webbrowser
+import webbrowser
+import json
+import os
+#The path to .exe file when using pyinstaller, not the temp folder
+basedir =  os.getcwd()
+
 
 
 
 LANG = 0
 new_lang = 0
-ver = "0.91"
+ver = "1.1"
 #Create a class, act as main window, inherit from tk.Tk this windows can resize and the element
 #inside will resize too.
 
@@ -25,6 +33,14 @@ The main windows have 2 part, the left is the control panel, the right is the pl
 
 '''
 #electric_field_cmap= ["RdBu_r",cm.jet,] 
+try:
+    from ctypes import windll  # Only exists on Windows.
+
+    myappid = "dtungpka.EFLIS." + ver  # arbitrary string
+    windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+except ImportError:
+    pass
+
 electric_field_cmap = {"Red and Blue":"RdBu_r",
                        "Jet":"jet",
                        "YlOrBr":"YlOrBr",
@@ -81,20 +97,31 @@ class settings:
     field_line_thickness = .5
 
     #View settings
-    show_charge_value = True
+    show_charge_value = False
     show_field_line = True
     show_potential_line = True
     show_electric_field = True
     show_grid = True
 
         
-
+def settings_to_json():
+    #Get all variables in settings class (ONLY VARIABLE IN SETTINGS CLASS, do not include other variables like __name__,...)
+    settings_dict = {key:value for key,value in settings.__dict__.items() if not key.startswith("__") and not callable(key)}
+    return settings_dict
+def json_to_settings(json_dict):
+    #Get all variables in settings class (ONLY VARIABLE IN SETTINGS CLASS, do not include other variables like __name__,...)
+    for key,value in json_dict.items():
+        if key in settings.__dict__:
+            setattr(settings,key,value)
+    return settings.__dict__
 
     
 class SettingsWindow(tk.Toplevel):
     def __init__(self, master=None) -> None:
         super().__init__(master=master)
         self.title("Settings")
+        #icon
+        self.iconbitmap(os.path.join(basedir,"data","icon.ico"))
         self.geometry("1000x800")
         self.resizable(False, False)
         self.create_widgets()
@@ -116,8 +143,10 @@ class SettingsWindow(tk.Toplevel):
         # Create the Performance settings tab
         performance_tab = ttk.Frame(notebook)
         notebook.add(performance_tab, text='Performance')
+
+        other_tab = ttk.Frame(notebook)
+        notebook.add(other_tab, text='Other')
         
-        #TODO: Add eps0 and reset
         # Add widgets to the Performance settings tab
         #performance_label = ttk.Label(performance_tab, text='Performance settings')
         #performance_label.pack(pady=10)
@@ -127,6 +156,10 @@ class SettingsWindow(tk.Toplevel):
         #The Peromfermance settings is a frame with label "Performance settings"
         self.performance_settings_frame = ttk.LabelFrame(performance_tab, text="Performance settings")
         self.performance_settings_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+
+
+        self.other_settings_frame = ttk.LabelFrame(other_tab, text="Other settings")
+        self.other_settings_frame.pack(side=tk.BOTTOM, fill=tk.BOTH, expand=True)
         #The color settings is a frame with label "Color settings" inside the Visual settings frame
         self.color_settings_frame = ttk.LabelFrame(self.visual_settings_frame, text="Color settings")
         #Pack the color settings frame to the left
@@ -217,16 +250,28 @@ class SettingsWindow(tk.Toplevel):
         #The fifth slider is for the field_line_count
         self.field_line_count_label = ttk.Label(self.performance_settings_frame, text="Number of field lines:")
         self.field_line_count_label.pack(side=tk.TOP, fill=tk.X, expand=True)
-        self.field_line_count_slider = ttk.Scale(self.performance_settings_frame, from_=1, to=1000, orient=tk.HORIZONTAL)
+        self.field_line_count_slider = ttk.Scale(self.performance_settings_frame, from_=1, to=10, orient=tk.HORIZONTAL)
         self.field_line_count_slider.pack(side=tk.TOP, fill=tk.X, expand=True)
         self.field_line_count_slider.set(settings.field_line_count)
         #The sixth slider is for the field_line_arrow_density
         self.field_line_arrow_density_label = ttk.Label(self.performance_settings_frame, text="Field line arrow density:")
         self.field_line_arrow_density_label.pack(side=tk.TOP, fill=tk.X, expand=True)
-        self.field_line_arrow_density_slider = ttk.Scale(self.performance_settings_frame, from_=1, to=1000, orient=tk.HORIZONTAL)
+        self.field_line_arrow_density_slider = ttk.Scale(self.performance_settings_frame, from_=0.01, to=0.99, orient=tk.HORIZONTAL)
         self.field_line_arrow_density_slider.pack(side=tk.TOP, fill=tk.X, expand=True)
         self.field_line_arrow_density_slider.set(settings.field_line_arrow_density)
          
+
+        #Add a entry Epson for the Epson value in other settings frame
+        self.epson_label = ttk.Label(self.other_settings_frame, text="Permittivity of free space:")
+        self.epson_label.pack(side=tk.TOP, fill=tk.X)
+        self.epson_entry = ttk.Entry(self.other_settings_frame)
+        self.epson_entry.pack(side=tk.TOP, fill=tk.X)
+        self.epson_entry.insert(0, self.master.EF.eps0)
+
+
+
+
+
         #Add a button to the settings frame, which is for saving the settings, put it at the bottom, alongwith the reset button
         #Create a frame for the save button
         self.save_button_frame = ttk.Frame(self)
@@ -248,43 +293,75 @@ class SettingsWindow(tk.Toplevel):
 
     def save_settings(self):
         #Save the settings to the settings.py file
-        settings.border_limit_percent = self.border_limit_percent_slider.get()
-        settings.potential_line_density = self.potential_line_density_slider.get()
-        settings.potential_density = self.potential_density_slider.get()
-        settings.electric_field_density = self.electric_field_density_slider.get()
-        settings.field_line_count = self.field_line_count_slider.get()
-        settings.field_line_arrow_density = self.field_line_arrow_density_slider.get()
-        settings.electric_field_brightness = self.electric_field_brightness_slider.get()
-        settings.charge_size = self.charge_size_slider.get()
-        settings.default_plot_scale = self.default_plot_scale_slider.get()
-        settings.field_lines_scale = self.field_line_scale_slider.get()
-        settings.electric_potential_line_thickness = self.electric_potential_line_thickness_slider.get()
-        settings.field_line_thickness = self.field_line_thickness_slider.get()
+        settings.border_limit_percent = round(self.border_limit_percent_slider.get(),2)
+        settings.potential_line_density = int(self.potential_line_density_slider.get())
+        settings.potential_density = int(self.potential_density_slider.get())
+        settings.electric_field_density = int(self.electric_field_density_slider.get())
+        settings.field_line_count = int(self.field_line_count_slider.get())
+        settings.field_line_arrow_density = round(self.field_line_arrow_density_slider.get(),2)
+        settings.electric_field_brightness = round(self.electric_field_brightness_slider.get(),2)
+        settings.charge_size = round(self.charge_size_slider.get(),2)
+        settings.default_plot_scale = round(self.default_plot_scale_slider.get(),2)
+        settings.field_lines_scale = round(self.field_line_scale_slider.get(),2)
+        settings.electric_potential_line_thickness = round(self.electric_potential_line_thickness_slider.get(),2)
+        settings.field_line_thickness = round(self.field_line_thickness_slider.get(),2)
 
+        #Color from dropdown menu
+        settings.field_cmap = electric_field_cmap[self.electric_field_color_dropdown.get()]
+        settings.field_line_color = field_line_colors[self.field_line_color_dropdown.get()]
+
+
+        self.master.EF.eps0 = float(self.epson_entry.get())
+        self.master.setup_plot()
+        self.master.setup_ef()
         self.master.update_plot()
+        self.master.refresh_plot()
+        self.close_settings()
+
     def reset_settings(self):
-        pass
+        #read the settings from the data/default_settings.et file
+        try:
+            d = json.load(open("data/default_settings.et"))
+            json_to_settings(d['Settings'])
+            self.master.EF.eps0 = d['eps0']
+        except:
+            messagebox.showerror("Error", "Unable to load default settings")
+        #Update the sliders
+        self.electric_field_color_dropdown.current(list(electric_field_cmap.values()).index(settings.field_cmap))
+        self.field_line_color_dropdown.current(list(field_line_colors.values()).index(settings.field_line_color))
+        self.electric_field_brightness_slider.set(settings.electric_field_brightness)
+        self.charge_size_slider.set(settings.charge_size)
+        self.default_plot_scale_slider.set(settings.default_plot_scale)
+        self.field_line_scale_slider.set(settings.field_lines_scale)
+        self.electric_potential_line_thickness_slider.set(settings.electric_potential_line_thickness)
+        self.field_line_thickness_slider.set(settings.field_line_thickness)
+        self.border_limit_percent_slider.set(settings.border_limit_percent)
+        self.potential_line_density_slider.set(settings.potential_line_density)
+        self.potential_density_slider.set(settings.potential_density)
+        self.electric_field_density_slider.set(settings.electric_field_density)
+        self.field_line_count_slider.set(settings.field_line_count)
+        self.field_line_arrow_density_slider.set(settings.field_line_arrow_density)
+        self.epson_entry.delete(0, tk.END)
+        self.epson_entry.insert(0, self.master.EF.eps0) #set the entry to the current value of eps0
+
+
+            
+
+
+    def close_settings(self):
+        self.master.settings_window = None
+        self.destroy()
 
 
     
         
-
-        
-
-
-
-
-
-
-        
-
 
 class MainWindow(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
         self.title("Electric Field Line Interactive Simulator (EFLIS) v" + ver)
         #set icon to icon.ico
-        self.iconbitmap("icon.ico")
+        self.iconbitmap(os.path.join(basedir,"data","icon.ico"))
         self.geometry("860x600")
         self.resizable(True, True)
         self.view_setting_buffer = [tk.IntVar(), tk.IntVar(), tk.IntVar(), tk.IntVar(), tk.IntVar()]
@@ -296,8 +373,8 @@ class MainWindow(tk.Tk):
         self.view_setting_buffer[4].set(settings.show_grid)
         self.create_widgets()
         self.EF = ef.Field()
-        self.EF.add_charge(2, [0,0])
-        self.EF.add_charge(-2, [2,0])
+        #self.EF.add_charge(2, [0,0])
+        #self.EF.add_charge(-2, [2,0])
         self.setup_plot()
         self.setup_ef()
         self.update_plot()
@@ -305,7 +382,6 @@ class MainWindow(tk.Tk):
         pass
     def setup_ef(self):
         
-        ##TODO: Need review
         
         self.set_border()
         self.EF.field_lines(settings.field_lines_scale,self.x_min, self.x_max, self.y_min, self.y_max, settings.field_line_count)
@@ -382,7 +458,7 @@ class MainWindow(tk.Tk):
         if settings.show_potential_line:
             self.ax.tricontour(xxs,yys,vvs,settings.potential_line_density,linewidths=settings.electric_potential_line_thickness,colors="0.3")
         if settings.show_electric_field:
-            self.ax.tricontourf(xxs,yys,vvs,settings.electric_field_density,cmap= settings.field_cmap) #TODO:cm.jet
+            self.ax.tricontourf(xxs,yys,vvs,settings.electric_field_density,cmap= settings.field_cmap)
         #cbar = self.ax.figure.colorbar(self.ax.collections[0])
         #cbar.set_ticks(np.linspace(clim0,clim1,5))
         #cbar.set_label("Electric Potential")
@@ -539,11 +615,34 @@ class MainWindow(tk.Tk):
     def open_charge_setting_window(self):
         charge_window = EditChargeWindow(self,self.EF)
     def new(self):
+        #Clear all charges
+        self.EF.charges = []
+        self.setup_plot()
+        self.setup_ef()
+        self.update_plot()
+        self.refresh_plot()
         pass
     def open(self):
+        file_name = filedialog.askopenfilename(filetypes=[("EFLIS Template", "*.et")])
+        if file_name:
+            with open(file_name, 'r') as f:
+                d = json.load(f)
+                self.EF.from_dict(d['Charges'])
+                json_to_settings(d['Settings'])
+                self.EF.eps0 = d['eps0']
+                self.setup_plot()
+                self.setup_ef()
+                self.update_plot()
+                self.refresh_plot()
         pass
+        
     def save(self):
-        pass
+        d = {'Charges':self.EF.get_dict(), 'Settings':settings_to_json(),'eps0':self.EF.eps0}
+        file_name = filedialog.asksaveasfilename(defaultextension=".et", filetypes=[("EFLIS Template", "*.et")])
+        if file_name:
+            with open(file_name, 'w') as f:
+                json.dump(d, f)
+
     def settings(self):
         settings_window = SettingsWindow(self)
 
@@ -555,7 +654,32 @@ class MainWindow(tk.Tk):
         pass
 
     def about(self):
-        pass
+        #show the about window
+        #This window contains the information of the program
+        #Frame on the left contains the logo of the program, frame on the right contains the information of the program and the author
+        about_window = tk.Toplevel(self)
+        about_window.title("About")
+        about_window.geometry("600x280")
+        about_window.resizable(False, False)
+        about_window.iconbitmap(os.path.join(basedir,"data","icon.ico"))
+        about_window_frame = tk.Frame(about_window)
+        about_window_frame.pack(fill=tk.BOTH, expand=True)
+        about_window_logo_frame = tk.Frame(about_window_frame)
+        about_window_logo_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        about_window_info_frame = tk.Frame(about_window_frame)
+        about_window_info_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
+        about_window_logo = tk.PhotoImage(file=os.path.join(basedir,"data","e.png"))
+
+        about_window_logo_label = tk.Label(about_window_logo_frame, image=about_window_logo)
+        about_window_logo_label.image = about_window_logo
+        about_window_logo_label.pack(fill=tk.BOTH, expand=True)
+        about_window_info_label = tk.Label(about_window_info_frame, text="Electric Field Lines Interaction Simulator (EFLIS)\nVersion "+ver+"\nAuthor: Duong Tung \nEmail: 21010294@st.phenikaa-uni.edu.vn", justify=tk.LEFT)
+        about_window_info_label.pack(fill=tk.BOTH, expand=True)
+        #Add a link to github
+        about_window_info_label.bind("<Button-1>", lambda e: webbrowser.open_new("https://github.com/dtungpka/EFLIS"))
+                                                                                 
+
+
     
 
 

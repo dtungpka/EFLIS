@@ -1,7 +1,10 @@
 REM using pyinstaller to build the executable for VepleyAI_acquire.py
-cls
 echo off
+cls
 echo Building EFLIS.exe...
-REM using pyinstaller with flag: --onefile
-pyinstaller ui.py --onefile --noconsole --icon=icon.ico --name=EFLIS 
+REM using pyinstaller wit - copy folder data to dist and --noconsole  --icon=data/icon.ico --name=EFLIS 
+pyinstaller ui.py --noconsole --onefile --icon=data/icon.ico --name=EFLIS 
+REM copy the data folder to the dist folder
+xcopy /E /I /Y data dist\EFLIS\data
+echo Done!
 

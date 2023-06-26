@@ -6,7 +6,9 @@ from tkinter import ttk
 from tkinter import filedialog
 import matplotlib.pyplot as plt
 import math
+import os
 
+basedir = os.getcwd()
 class EntryPopup(ttk.Entry):
     def __init__(self, parent, iid, column, text,index,Field, **kw):
         ttk.Style().configure('pad.TEntry', padding='1 1 1 1')
@@ -66,7 +68,8 @@ class EditChargeWindow(tk.Toplevel):
     def __init__(self,master,Field: ef.Field):
         super().__init__(master)
         self.Field = Field
-        self.title("Edit Charge")
+        self.title("Edit Charges")
+        self.iconbitmap(os.path.join(basedir,"data","icon.ico"))
         self.geometry("600x500")
         self.resizable(False,False)
         self.protocol("WM_DELETE_WINDOW",self.close)
@@ -339,13 +342,3 @@ class EditChargeWindow(tk.Toplevel):
         self.master.update_plot()
         self.master.refresh_plot()
         self.destroy()
-class SettingsWindow(tk.Toplevel):
-    def __init__(self,master) -> None:
-        super().__init__(master)
-        self.title("Settings")
-        self.geometry("400x300")
-        self.resizable(False,False)
-        self.create_widgets()
-    def create_widgets(self):
-        #Divide into 2 frames: Visual and Performance
-        pass

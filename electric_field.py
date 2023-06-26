@@ -49,6 +49,17 @@ class Field:
         for C in self.charges:
             pos.append(C.pos)
         return pos
+    def get_dict(self):
+        #Return a dictionary containing the charges and their positions
+        d = []
+        for C in self.charges:
+            d.append({'q':C.q,'pos':C.pos})
+        return d
+    def from_dict(self,d):
+        #Load the charges and their positions from a dictionary
+        self.charges = []
+        for C in d:
+            self.add_charge(C['q'],C['pos'])
     def get_min_charges(self):
         self.min_charges= None
         for C in self.charges:
@@ -127,7 +138,6 @@ class NetForce:
         self.epsilon=epsilon
     def get_distance(self,charge1,charge2):
         dis = np.sqrt((charge1.pos[0]-charge2.pos[0])**2+(charge1.pos[1]-charge2.pos[1])**2)
-        print(dis)
         return  dis
     def get_force(self,charge1,charge2):
         return 9e9*abs(charge1.q*charge2.q)/((self.get_distance(charge1,charge2)**2)*self.epsilon)
