@@ -8,6 +8,7 @@ class Charge:
     def __init__(self, q, pos):
         self.q=q
         self.pos=pos
+        self.array = np.array([self.q,self.pos[0],self.pos[1]])
     def E(self, x, y):
         #base on E_point_charge
         return self.q*(x-self.pos[0])/((x-self.pos[0])**2+(y-self.pos[1])**2)**(1.5), \
@@ -21,34 +22,49 @@ class Field:
     def __init__(self):
         self.charges=[]
         self.min_charges= None
+        self.charges_array = np.zeros((0,3))
     def add_charge(self, q, pos):
         self.charges.append(Charge(q, pos))
         if self.min_charges==None or abs(q)<self.min_charges:
             self.min_charges=abs(q)
+        self.charges_array = np.append(self.charges_array,[[q,pos[0],pos[1]]],axis=0)
     def delete_charge(self, index):
         self.charges.pop(index)
+        self.charges_array = np.delete(self.charges_array,index,axis=0)
     def E(self, x, y):
-        Ex, Ey=0, 0
-        for C in self.charges:
-            E=C.E(x, y)
-            Ex=Ex+E[0]
-            Ey=Ey+E[1]
+        # Ex, Ey=0, 0
+        # for C in self.charges:
+        #     E=C.E(x, y)
+        #     Ex=Ex+E[0]
+        #     Ey=Ey+E[1]
+        # return [ Ex, Ey ]
+
+        Ex = np.sum(self.charges_array[:,0]*(x-self.charges_array[:,1])/((x-self.charges_array[:,1])**2+(y-self.charges_array[:,2])**2)**(1.5),axis=0)
+        Ey = np.sum(self.charges_array[:,0]*(y-self.charges_array[:,2])/((x-self.charges_array[:,1])**2+(y-self.charges_array[:,2])**2)**(1.5),axis=0)
         return [ Ex, Ey ]
+
+    
+
     def V(self, x, y):
-        V=0
-        for C in self.charges:
-            Vp=C.V(x, y)
-            V = V+Vp
+        #make x  from m array into shape mxn array with n is the number of charges
+        #make y  from m array into shape mxn array with n is the number of charges
+        
+        X = np.tile(x,(self.charges_array.shape[0],1))
+        Y = np.tile(y,(self.charges_array.shape[0],1))
+
+        c = self.charges_array[:,0].reshape(self.charges_array.shape[0],1)
+        x_ = self.charges_array[:,1].reshape(self.charges_array.shape[0],1)
+        y_ = self.charges_array[:,2].reshape(self.charges_array.shape[0],1)
+
+        V = np.sum(c/((X-x_)**2+(Y-y_)**2)**(0.5),axis=0)
         return V
     def E_dir(self, t, y,charge):
         Ex, Ey=self.E(y[0], y[1])
         n=np.sqrt(Ex**2+Ey*Ey)
         return [Ex/n, Ey/n]
     def get_positons(self):
-        pos=[]
-        for C in self.charges:
-            pos.append(C.pos)
-        return pos
+        #return the last 2 columns of the charges_array, in list
+        return self.charges_array[:,1:].tolist()
     def get_dict(self):
         #Return a dictionary containing the charges and their positions
         d = []
@@ -103,22 +119,28 @@ class Field:
                 self.start_charge.append(C.q)
         return self.xs,self.ys
     def electric_potential(self,x_min,x_max,y_min,y_max,density=300,brightness=1.2):
+        numcalcv = density
         # calculate electric potential
-        vvs = []
-        xxs = []
-        yys = []
-        numcalcv = density #TODO: make this a parameter
-        for xx,yy in product(np.linspace(x_min,x_max,numcalcv),np.linspace(y_min,y_max,numcalcv)):
-            xxs.append(xx)
-            yys.append(yy)
-            vvs.append(self.V(xx,yy))
-        self.xxs = np.array(xxs)
-        self.yys = np.array(yys)
-        self.vvs = np.array(vvs)
+        self.vvs = []
+        self.xxs = []
+        self.yys = []
+        #if no charges, return 0
+        if len(self.charges)==0:
+            return self.xxs,self.yys,self.vvs
+        x,y = np.linspace(x_min,x_max,numcalcv),np.linspace(y_min,y_max,numcalcv)
+        self.xxs = np.tile(x,(y.shape[0],1)).reshape(-1)
+        self.yys = np.tile(y,(x.shape[0],1)).T.reshape(-1)
+        
+        self.vvs = self.V(self.xxs,self.yys)
+
+
 
         #Normalize the potential
         #self.vvs = self.vvs - np.min(self.vvs)
         self.vvs = self.vvs / np.max(self.vvs) * brightness
+        #convert all to list
+        self.xxs,self.yys,self.vvs = self.xxs.tolist(),self.yys.tolist(),self.vvs.tolist()
+
         return self.xxs,self.yys,self.vvs
     
 

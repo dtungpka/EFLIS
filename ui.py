@@ -5,6 +5,7 @@ from matplotlib.backends.backend_tkagg import NavigationToolbar2Tk
 import electric_field as ef
 import numpy as np
 from matplotlib import cm
+import time
 from scipy.integrate import ode as ode
 from itertools import product
 from tkinter import ttk
@@ -24,7 +25,7 @@ basedir =  os.getcwd()
 
 LANG = 0
 new_lang = 0
-ver = "1.1"
+ver = "1.2"
 #Create a class, act as main window, inherit from tk.Tk this windows can resize and the element
 #inside will resize too.
 
@@ -86,7 +87,7 @@ class settings:
     electric_field_density = 200
     field_line_count = 5
     field_line_arrow_density = 0.5
-    potential_density = 400
+    potential_density = 100
 
     #Plot parameters
     electric_field_brightness = 4
@@ -105,11 +106,9 @@ class settings:
 
         
 def settings_to_json():
-    #Get all variables in settings class (ONLY VARIABLE IN SETTINGS CLASS, do not include other variables like __name__,...)
     settings_dict = {key:value for key,value in settings.__dict__.items() if not key.startswith("__") and not callable(key)}
     return settings_dict
 def json_to_settings(json_dict):
-    #Get all variables in settings class (ONLY VARIABLE IN SETTINGS CLASS, do not include other variables like __name__,...)
     for key,value in json_dict.items():
         if key in settings.__dict__:
             setattr(settings,key,value)
@@ -238,7 +237,7 @@ class SettingsWindow(tk.Toplevel):
         #The third slider is for the potential_density
         self.potential_density_label = ttk.Label(self.performance_settings_frame, text="Potential density:")
         self.potential_density_label.pack(side=tk.TOP, fill=tk.X, expand=True)  
-        self.potential_density_slider = ttk.Scale(self.performance_settings_frame, from_=1, to=1000, orient=tk.HORIZONTAL)
+        self.potential_density_slider = ttk.Scale(self.performance_settings_frame, from_=1, to=600, orient=tk.HORIZONTAL)
         self.potential_density_slider.pack(side=tk.TOP, fill=tk.X, expand=True)
         self.potential_density_slider.set(settings.potential_density)
         #The fourth slider is for the electric_field_density
@@ -312,9 +311,6 @@ class SettingsWindow(tk.Toplevel):
 
 
         self.master.EF.eps0 = float(self.epson_entry.get())
-        self.master.setup_plot()
-        self.master.setup_ef()
-        self.master.update_plot()
         self.master.refresh_plot()
         self.close_settings()
 
@@ -362,7 +358,7 @@ class MainWindow(tk.Tk):
         self.title("Electric Field Line Interactive Simulator (EFLIS) v" + ver)
         #set icon to icon.ico
         self.iconbitmap(os.path.join(basedir,"data","icon.ico"))
-        self.geometry("860x600")
+        self.geometry("860x700")
         self.resizable(True, True)
         self.view_setting_buffer = [tk.IntVar(), tk.IntVar(), tk.IntVar(), tk.IntVar(), tk.IntVar()]
         #set the view settings to the default value
@@ -382,10 +378,11 @@ class MainWindow(tk.Tk):
         pass
     def setup_ef(self):
         
-        
+        t = time.time()
         self.set_border()
         self.EF.field_lines(settings.field_lines_scale,self.x_min, self.x_max, self.y_min, self.y_max, settings.field_line_count)
         self.EF.electric_potential(self.x_min, self.x_max, self.y_min, self.y_max, settings.potential_density, settings.electric_field_brightness)
+        print(f"Time to calculate electric field: {time.time()-t}s")
     def setup_plot(self):
         #self.fig = plt.figure(figsize=(5.5, 4.5),facecolor="w")
         #self.ax = self.fig.add_subplot(111)
@@ -396,7 +393,7 @@ class MainWindow(tk.Tk):
         #self.canvas.get_tk_widget().pack(side=tk.RIGHT, fill=tk.BOTH, expand=1)
         pass
     def update_plot(self):
-
+        t = time.time()
         #Clear the plot
         self.ax.clear()
         if len(self.EF.charges) == 0:
@@ -407,7 +404,7 @@ class MainWindow(tk.Tk):
             self.ax.grid(True)
         else:
             self.ax.grid(False)
-
+        print(f"Time to clear plot: {time.time()-t}s")
 
         # plot field line
         if settings.show_field_line:
@@ -429,7 +426,7 @@ class MainWindow(tk.Tk):
                     dy = y[i] - y[i-1]
                     #using annotate to plot arrow
                     self.ax.annotate("", xy=(x[i], y[i]), xytext=(x[i-1], y[i-1]), arrowprops=dict(arrowstyle="->", color=settings.field_line_color, lw=1.5))
-
+        print(f"Time to plot field line: {time.time()-t}s")
                 
 
             
@@ -445,7 +442,7 @@ class MainWindow(tk.Tk):
                 x = C.pos[0] - offset if c < 0 else C.pos[0] + offset
                 y = C.pos[1] - offset if c < 0 else C.pos[1] + offset
                 self.ax.text(x, y, str(ef.float_to_metric_prefix(C.q)).replace(' ',''), va="center", ha="center", size=size*.8, color="w")
-        
+        print(f"Time to plot point charges: {time.time()-t}s")
         
         
         
@@ -453,8 +450,14 @@ class MainWindow(tk.Tk):
         xxs = self.EF.xxs
         yys = self.EF.yys
         # plot electric potential
-        vvs[np.where(vvs<=-1)] = -0.999999 # to avoid error
-        vvs[np.where(vvs>=1)] = 0.999999 # to avoid error
+        #vvs[np.where(vvs<=-1)] = -0.999999 # to avoid error
+        #vvs[np.where(vvs>=1)] = 0.999999 # to avoid error
+
+        vvs = np.clip(vvs,-0.999999,0.999999)
+
+
+
+        print(f"Time before plot electric potential: {time.time()-t}s")
         if settings.show_potential_line:
             self.ax.tricontour(xxs,yys,vvs,settings.potential_line_density,linewidths=settings.electric_potential_line_thickness,colors="0.3")
         if settings.show_electric_field:
@@ -462,9 +465,10 @@ class MainWindow(tk.Tk):
         #cbar = self.ax.figure.colorbar(self.ax.collections[0])
         #cbar.set_ticks(np.linspace(clim0,clim1,5))
         #cbar.set_label("Electric Potential")
+        print(f"Time to plot electric potential: {time.time()-t}s")
         self.ax.set_xlim(1.75*self.default_x_min, 1.75*self.default_x_max)
         self.ax.set_ylim(self.default_y_min,self.default_y_max)
-   
+        print(f"Time to plot: {time.time()-t}s")
     def set_border(self):  
         #Limit the plot area
         default_value = 0.001
@@ -673,7 +677,7 @@ class MainWindow(tk.Tk):
         about_window_logo_label = tk.Label(about_window_logo_frame, image=about_window_logo)
         about_window_logo_label.image = about_window_logo
         about_window_logo_label.pack(fill=tk.BOTH, expand=True)
-        about_window_info_label = tk.Label(about_window_info_frame, text="Electric Field Lines Interaction Simulator (EFLIS)\nVersion "+ver+"\nAuthor: Duong Tung \nEmail: 21010294@st.phenikaa-uni.edu.vn", justify=tk.LEFT)
+        about_window_info_label = tk.Label(about_window_info_frame, text="Electric Field Lines Interaction Simulator (EFLIS)\nVersion "+ver+"\nAuthor: Duong Tung \nEmail: 21010294@st.phenikaa-uni.edu.vn\nCoAuthor: Do Duc Anh \nEmail: 21012329@st.phenikaa-uni.edu.vn", justify=tk.LEFT)
         about_window_info_label.pack(fill=tk.BOTH, expand=True)
         #Add a link to github
         about_window_info_label.bind("<Button-1>", lambda e: webbrowser.open_new("https://github.com/dtungpka/EFLIS"))

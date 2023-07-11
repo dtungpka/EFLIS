@@ -337,8 +337,5 @@ class EditChargeWindow(tk.Toplevel):
     def close(self):
         self.destroy()
     def apply(self):
-        self.master.setup_plot()
-        self.master.setup_ef()
-        self.master.update_plot()
         self.master.refresh_plot()
         self.destroy()
