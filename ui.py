@@ -381,6 +381,7 @@ class MainWindow(tk.Tk):
         t = time.time()
         self.set_border()
         self.EF.field_lines(settings.field_lines_scale,self.x_min, self.x_max, self.y_min, self.y_max, settings.field_line_count)
+        print(f"Time to calculate field lines: {time.time()-t}s")
         self.EF.electric_potential(self.x_min, self.x_max, self.y_min, self.y_max, settings.potential_density, settings.electric_field_brightness)
         print(f"Time to calculate electric field: {time.time()-t}s")
     def setup_plot(self):
@@ -634,9 +635,6 @@ class MainWindow(tk.Tk):
                 self.EF.from_dict(d['Charges'])
                 json_to_settings(d['Settings'])
                 self.EF.eps0 = d['eps0']
-                self.setup_plot()
-                self.setup_ef()
-                self.update_plot()
                 self.refresh_plot()
         pass
         

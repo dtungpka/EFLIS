@@ -4,6 +4,7 @@ from scipy.integrate import ode as ode
 from matplotlib import cm
 from itertools import product
 from quantiphy import Quantity
+import time
 class Charge:
     def __init__(self, q, pos):
         self.q=q
@@ -28,6 +29,16 @@ class Field:
         if self.min_charges==None or abs(q)<self.min_charges:
             self.min_charges=abs(q)
         self.charges_array = np.append(self.charges_array,[[q,pos[0],pos[1]]],axis=0)
+    def modify_charge(self, index,**kwargs):
+        '''
+        kwargs:
+        q: new charge
+        pos: new position'''
+        if index>=len(self.charges):
+            return
+        self.charges[index].q = kwargs.get('q',self.charges[index].q)
+        self.charges[index].pos = kwargs.get('pos',self.charges[index].pos)
+        self.charges_array[index] = [self.charges[index].q,self.charges[index].pos[0],self.charges[index].pos[1]]
     def delete_charge(self, index):
         self.charges.pop(index)
         self.charges_array = np.delete(self.charges_array,index,axis=0)
@@ -48,10 +59,8 @@ class Field:
     def V(self, x, y):
         #make x  from m array into shape mxn array with n is the number of charges
         #make y  from m array into shape mxn array with n is the number of charges
-        
         X = np.tile(x,(self.charges_array.shape[0],1))
         Y = np.tile(y,(self.charges_array.shape[0],1))
-
         c = self.charges_array[:,0].reshape(self.charges_array.shape[0],1)
         x_ = self.charges_array[:,1].reshape(self.charges_array.shape[0],1)
         y_ = self.charges_array[:,2].reshape(self.charges_array.shape[0],1)

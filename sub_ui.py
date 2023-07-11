@@ -50,8 +50,14 @@ class EntryPopup(ttk.Entry):
         #if len(self.Field.charges) == 0 or self.index >= len(self.Field.charges):
             #self.Field.add_charge(ef.metric_prefix_to_float(vals[2]),[float(vals[0]),float(vals[1])])
         #else:
-        self.Field.charges[self.index].pos = [float(vals[0]),float(vals[1])]
-        self.Field.charges[self.index].q = ef.metric_prefix_to_float(vals[2]) if ef.metric_prefix_to_float(vals[2]) != 0 else self.Field.charges[self.index].q
+        #self.Field.charges[self.index].
+        pos = [float(vals[0]),float(vals[1])]
+        
+        if ef.metric_prefix_to_float(vals[2]) != 0:
+            q = ef.metric_prefix_to_float(vals[2]) 
+        else:
+            q = self.Field.charges[self.index].q
+        self.Field.modify_charge(self.index,q=q,pos=pos)
         if self.column == 2:
             vals[self.column] = ef.float_to_metric_prefix(vals[self.column])
         self.tv.item(rowid, values=vals)
