@@ -350,7 +350,56 @@ class SettingsWindow(tk.Toplevel):
 
 
     
-        
+class ProggresBarWindow(tk.Toplevel):
+    #This window is for showing the proggres bar when calculating the field lines and electric field
+    # The proggres bar is a ttk.Progressbar
+    # The proggres bar is in a frame, which is in the window       
+    def __init__(self, master=None) -> None:
+        super().__init__(master=master)
+        self.title("Calculating")
+        #icon
+        self.iconbitmap(os.path.join(basedir,"data","icon.ico"))
+        self.geometry("300x50")
+        self.resizable(False, False)
+        self.create_widgets()
+        pass
+    def create_widgets(self):
+        #A timer label on top
+        #A frame for the proggres bar, containing the proggres bar and the label
+        #A cancel button
+
+        #Create a frame for the proggres bar
+        self.proggres_bar_frame = ttk.Frame(self)
+        self.proggres_bar_frame.pack(side=tk.TOP, fill=tk.X, expand=False)
+        #Create a time elapsed label
+        self.time_elapsed_label = ttk.Label(self, text="Time elapsed: 0s")
+        self.time_elapsed_label.pack(side=tk.TOP, fill=tk.X, expand=False)
+        #Create the proggres bar
+        self.proggres_bar = ttk.Progressbar(self.proggres_bar_frame, orient=tk.HORIZONTAL, length=300, mode='determinate')
+        self.proggres_bar.pack(side=tk.TOP, fill=tk.X, expand=False)
+        #Create the label
+        self.proggres_bar_label = ttk.Label(self.proggres_bar_frame, text="Calculating...")
+        self.proggres_bar_label.pack(side=tk.TOP, fill=tk.X, expand=False)
+        #Create the cancel button
+        self.cancel_button = ttk.Button(self, text="Cancel", command=self.cancel)
+        self.cancel_button.pack(side=tk.BOTTOM, fill=tk.X, expand=False, padx=5, pady=5)
+        pass
+    def cancel(self):
+        self.master.EF.cancel = True
+        self.destroy()
+        pass
+    def set_time_elapsed(self, time_elapsed):
+        self.time_elapsed_label.config(text=f"Time elapsed: {time_elapsed}s")
+        pass
+    def set_proggres(self, proggres):
+        self.proggres_bar['value'] = proggres
+        pass
+    def set_label(self, label):
+        self.proggres_bar_label.config(text=label)
+        pass
+    def close(self):
+        self.destroy()
+        pass
 
 class MainWindow(tk.Tk):
     def __init__(self) -> None:
@@ -382,6 +431,7 @@ class MainWindow(tk.Tk):
         self.set_border()
         self.EF.field_lines(settings.field_lines_scale,self.x_min, self.x_max, self.y_min, self.y_max, settings.field_line_count)
         print(f"Time to calculate field lines: {time.time()-t}s")
+        t = time.time()
         self.EF.electric_potential(self.x_min, self.x_max, self.y_min, self.y_max, settings.potential_density, settings.electric_field_brightness)
         print(f"Time to calculate electric field: {time.time()-t}s")
     def setup_plot(self):

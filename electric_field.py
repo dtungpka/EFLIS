@@ -5,6 +5,7 @@ from matplotlib import cm
 from itertools import product
 from quantiphy import Quantity
 import time
+import multiprocessing as mp
 class Charge:
     def __init__(self, q, pos):
         self.q=q
@@ -17,7 +18,62 @@ class Charge:
     def V(self, x, y):
         #base on V_point_charge
         return self.q/((x-self.pos[0])**2+(y-self.pos[1])**2)**(0.5)
+def E_dir( t, pos,arr):
+    charges_array = arr
+    x, y = pos
+    Ex = np.sum(charges_array[:,0]*(x-charges_array[:,1])/((x-charges_array[:,1])**2+(y-charges_array[:,2])**2)**(1.5),axis=0)
+    Ey = np.sum(charges_array[:,0]*(y-charges_array[:,2])/((x-charges_array[:,1])**2+(y-charges_array[:,2])**2)**(1.5),axis=0)
     
+    n=np.sqrt(Ex**2+Ey*Ey)
+    return [Ex/n, Ey/n]
+def process_charge(queue,args):
+            #print charge and time take to calculate
+            print(args[1][0], end=' ')
+            tstart = time.time()
+            field = args[0] #np array of charges
+            C = args[1]
+            lim = args[2]
+            R = args[3]
+            
+            x_min, x_max, y_min, y_max = lim
+            dt = 0.8 * R
+            q = C[0]
+            pos = C[1]
+            #Field.charges = self.charges
+            xs, ys, start_charge = [], [], []
+            if q < 0:
+                dt = -dt
+            lines_per_charge = args[4]
+            for alpha in np.linspace(0, 2 * np.pi * (lines_per_charge - 1) / lines_per_charge, lines_per_charge):
+                r = ode(E_dir)
+                r.set_f_params(field)
+                r.set_integrator('vode')
+                x = [pos[0] + np.cos(alpha) * R]
+                y = [pos[1] + np.sin(alpha) * R]
+
+                r.set_initial_value([x[0], y[0]], 0)
+                while r.successful():
+                    r.integrate(r.t + dt)
+                    x.append(r.y[0])
+                    y.append(r.y[1])
+                    hit_charge = False
+                    #Loop through charge in array
+                    for l in range(field.shape[0]):
+                        pos_x = field[l,1]
+                        pos_y = field[l,2]
+                        if np.linalg.norm(r.y - [pos_x,pos_y]) < R:
+                            hit_charge = True
+                            break
+                    if hit_charge or not (x_min < r.y[0] < x_max) or not (y_min < r.y[1] < y_max):
+                        break
+                xs.append(x)
+                ys.append(y)
+                start_charge.append(q)
+            print(time.time() - tstart)
+            if queue != None:
+                queue.put([xs, ys, start_charge])
+            else:
+                return [xs, ys, start_charge]
 class Field:
     eps0 = 1
     def __init__(self):
@@ -57,8 +113,6 @@ class Field:
     
 
     def V(self, x, y):
-        #make x  from m array into shape mxn array with n is the number of charges
-        #make y  from m array into shape mxn array with n is the number of charges
         X = np.tile(x,(self.charges_array.shape[0],1))
         Y = np.tile(y,(self.charges_array.shape[0],1))
         c = self.charges_array[:,0].reshape(self.charges_array.shape[0],1)
@@ -67,10 +121,7 @@ class Field:
 
         V = np.sum(c/((X-x_)**2+(Y-y_)**2)**(0.5),axis=0)
         return V
-    def E_dir(self, t, y,charge):
-        Ex, Ey=self.E(y[0], y[1])
-        n=np.sqrt(Ex**2+Ey*Ey)
-        return [Ex/n, Ey/n]
+
     def get_positons(self):
         #return the last 2 columns of the charges_array, in list
         return self.charges_array[:,1:].tolist()
@@ -90,43 +141,54 @@ class Field:
         for C in self.charges:
             if self.min_charges==None or abs(C.q)<self.min_charges:
                 self.min_charges=abs(C.q)
-    def field_lines(self,scale, x_min, x_max, y_min, y_max, num_lines=16):
-        R= scale
-        self.xs,self.ys = [],[]
+    def field_lines(self, scale, x_min, x_max, y_min, y_max, num_lines=16):
+        self.xs, self.ys = [], []
         self.start_charge = []
         self.get_min_charges()
-        for C in self.charges:
-            # plot field lines starting in current charge
-            dt=0.8*R
-            if C.q<0:
-                dt=-dt
-            # loop over field lines starting in different directions 
-            # around current charge
-            lines_per_charge=int(num_lines * abs(C.q)/self.min_charges)
-            for alpha in np.linspace(0, 2*np.pi*(lines_per_charge-1)/lines_per_charge , lines_per_charge):
-                r=ode(self.E_dir)
-                r.set_integrator('vode')
-                r.set_f_params(self.charges)
-                x=[ C.pos[0] + np.cos(alpha)*R ]
-                y=[ C.pos[1] + np.sin(alpha)*R ]
+        self.num_lines = num_lines
+        lim = [x_min, x_max, y_min, y_max]
+        self.R = scale
+        #lines_per_charge = int(self.num_lines * abs(q) / self.min_charges)
 
-                r.set_initial_value([x[0], y[0]], 0)
-                while r.successful():
-                    r.integrate(r.t+dt)
-                    x.append(r.y[0])
-                    y.append(r.y[1])
-                    hit_charge=False
-                    # check if field line left drwaing area or ends in some charge
-                    for C2 in self.charges:
-                        if np.sqrt((r.y[0]-C2.pos[0])**2+(r.y[1]-C2.pos[1])**2)<R:
-                            hit_charge=True
-                    if hit_charge or (not (x_min<r.y[0] and r.y[0]<x_max)) or \
-                            (not (y_min<r.y[1] and r.y[1]<y_max)):
-                        break
-                self.xs.append(x)
-                self.ys.append(y)
-                self.start_charge.append(C.q)
-        return self.xs,self.ys
+
+        
+
+        #print("multiprocessing:", end='')
+        #tstart = time.time()
+        #num_processes = mp.cpu_count()
+        
+        
+        args = [[self.charges_array.copy(), (C.q, C.pos), lim,self.R,int(self.num_lines * abs(C.q) / self.min_charges)] for C in self.charges]
+        #use mp process to calculate, but do not use pool
+        #because pool will copy the whole class, which is not necessary
+        #if number of charges is < 4, do not use mp
+        if len(self.charges) > 4:
+            q = mp.Queue()
+            processes = [mp.Process(target=process_charge, args=(q, arg)) for arg in args]
+            for p in processes:
+                p.start()
+            #Check the queue is equal to the number of processes then collect the results
+            results = []
+            while len(results) < len(processes):
+                results.append(q.get())
+            for p in processes:
+                p.join()
+            for result in results:
+                self.xs += result[0]
+                self.ys += result[1]
+                self.start_charge += result[2]
+        else:
+            for arg in args:
+                result = process_charge(None, arg)
+                self.xs += result[0]
+                self.ys += result[1]
+                self.start_charge += result[2]
+            
+        #print(time.time() - tstart)
+
+
+
+        return self.xs, self.ys
     def electric_potential(self,x_min,x_max,y_min,y_max,density=300,brightness=1.2):
         numcalcv = density
         # calculate electric potential
@@ -228,3 +290,17 @@ class NetForce:
     
 
 
+if __name__ == "__main__":
+    #Test 
+    EF = Field()
+    t = time.time()
+    EF.add_charge(1, [0, 0])
+    EF.add_charge(-1, [1, 0])
+    EF.add_charge(1, [0, 1])
+    EF.add_charge(-1, [1, 1])
+
+    EF.field_lines(0.1, -2, 2, -2, 2, 16)
+    print(time.time()-t)
+    EF.electric_potential(-2,2,-2,2,300,1.2)
+    print(time.time()-t)
+        
