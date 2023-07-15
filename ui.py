@@ -359,8 +359,18 @@ class ProggresBarWindow(tk.Toplevel):
         self.title("Calculating")
         #icon
         self.iconbitmap(os.path.join(basedir,"data","icon.ico"))
-        self.geometry("300x50")
+        self.geometry("300x100")
         self.resizable(False, False)
+        #position the window at the center of the screen
+        self.update_idletasks()
+        w = self.winfo_screenwidth()
+        h = self.winfo_screenheight()
+        size = tuple(int(_) for _ in self.geometry().split('+')[0].split('x'))
+        x = w/2 - size[0]/2
+        y = h/2 - size[1]/2
+        self.geometry("%dx%d+%d+%d" % (size + (x, y)))
+        #Create the widgets
+
         self.create_widgets()
         pass
     def create_widgets(self):
@@ -380,22 +390,20 @@ class ProggresBarWindow(tk.Toplevel):
         #Create the label
         self.proggres_bar_label = ttk.Label(self.proggres_bar_frame, text="Calculating...")
         self.proggres_bar_label.pack(side=tk.TOP, fill=tk.X, expand=False)
-        #Create the cancel button
-        self.cancel_button = ttk.Button(self, text="Cancel", command=self.cancel)
-        self.cancel_button.pack(side=tk.BOTTOM, fill=tk.X, expand=False, padx=5, pady=5)
-        pass
-    def cancel(self):
-        self.master.EF.cancel = True
-        self.destroy()
+    
         pass
     def set_time_elapsed(self, time_elapsed):
         self.time_elapsed_label.config(text=f"Time elapsed: {time_elapsed}s")
+        #update the window
+        self.update()
         pass
     def set_proggres(self, proggres):
         self.proggres_bar['value'] = proggres
+        self.update()
         pass
     def set_label(self, label):
         self.proggres_bar_label.config(text=label)
+        self.update()
         pass
     def close(self):
         self.destroy()
@@ -420,21 +428,23 @@ class MainWindow(tk.Tk):
         self.EF = ef.Field()
         #self.EF.add_charge(2, [0,0])
         #self.EF.add_charge(-2, [2,0])
-        self.setup_plot()
-        self.setup_ef()
-        self.update_plot()
+        self.refresh_plot()
         self.update()
         pass
     def setup_ef(self):
         
-        t = time.time()
         self.set_border()
         self.EF.field_lines(settings.field_lines_scale,self.x_min, self.x_max, self.y_min, self.y_max, settings.field_line_count)
-        print(f"Time to calculate field lines: {time.time()-t}s")
+        print(f"Time to calculate field lines: {time.time()-self.t}s")
+        self.proggres_bar_window.set_time_elapsed(round(time.time()-self.t,2))
+        self.proggres_bar_window.set_proggres(30)
+        self.proggres_bar_window.set_label("Calculating electric field...")
         t = time.time()
         self.EF.electric_potential(self.x_min, self.x_max, self.y_min, self.y_max, settings.potential_density, settings.electric_field_brightness)
         print(f"Time to calculate electric field: {time.time()-t}s")
-    def setup_plot(self):
+        self.proggres_bar_window.set_time_elapsed(round(time.time()-self.t,2))
+        self.proggres_bar_window.set_proggres(60)
+        
         #self.fig = plt.figure(figsize=(5.5, 4.5),facecolor="w")
         #self.ax = self.fig.add_subplot(111)
         self.ax.set_xlabel('$x$')
@@ -444,6 +454,7 @@ class MainWindow(tk.Tk):
         #self.canvas.get_tk_widget().pack(side=tk.RIGHT, fill=tk.BOTH, expand=1)
         pass
     def update_plot(self):
+        self.proggres_bar_window.set_label("Drawing plot...")
         t = time.time()
         #Clear the plot
         self.ax.clear()
@@ -478,7 +489,10 @@ class MainWindow(tk.Tk):
                     #using annotate to plot arrow
                     self.ax.annotate("", xy=(x[i], y[i]), xytext=(x[i-1], y[i-1]), arrowprops=dict(arrowstyle="->", color=settings.field_line_color, lw=1.5))
         print(f"Time to plot field line: {time.time()-t}s")
-                
+        self.proggres_bar_window.set_time_elapsed(round(time.time()-self.t,2))
+        self.proggres_bar_window.set_proggres(80)
+        self.proggres_bar_window.set_label("Drawing point charges...")
+
 
             
 
@@ -494,7 +508,9 @@ class MainWindow(tk.Tk):
                 y = C.pos[1] - offset if c < 0 else C.pos[1] + offset
                 self.ax.text(x, y, str(ef.float_to_metric_prefix(C.q)).replace(' ',''), va="center", ha="center", size=size*.8, color="w")
         print(f"Time to plot point charges: {time.time()-t}s")
-        
+        self.proggres_bar_window.set_time_elapsed(round(time.time()-self.t,2))
+        self.proggres_bar_window.set_proggres(90)
+        self.proggres_bar_window.set_label("Drawing electric potential...")
         
         
         vvs = self.EF.vvs
@@ -517,9 +533,13 @@ class MainWindow(tk.Tk):
         #cbar.set_ticks(np.linspace(clim0,clim1,5))
         #cbar.set_label("Electric Potential")
         print(f"Time to plot electric potential: {time.time()-t}s")
+        self.proggres_bar_window.set_time_elapsed(round(time.time()-self.t,2))
+        self.proggres_bar_window.set_proggres(100)
+        self.proggres_bar_window.set_label("Done")
         self.ax.set_xlim(1.75*self.default_x_min, 1.75*self.default_x_max)
         self.ax.set_ylim(self.default_y_min,self.default_y_max)
         print(f"Time to plot: {time.time()-t}s")
+
     def set_border(self):  
         #Limit the plot area
         default_value = 0.001
@@ -543,16 +563,25 @@ class MainWindow(tk.Tk):
         
         pass
 
-    def refresh_plot(self):
+    def refresh_plot(self,recalculate=True):
+        self.proggres_bar_window = ProggresBarWindow(self)
+        self.proggres_bar_window.set_time_elapsed(0)
+        self.proggres_bar_window.set_proggres(0)
+        self.proggres_bar_window.set_label("Calculating field lines...")
+        self.t = time.time()
         #clear the plot and redraw it
         self.ax.clear()
-        self.setup_ef()
+        if recalculate:
+            self.setup_ef()
         self.update_plot()
         self.canvas.draw()
         self.canvas.flush_events()
+        self.proggres_bar_window.close()
+        self.proggres_bar_window = None
         pass
 
-
+    def update_plt_(self):
+        self.refresh_plot(recalculate=False)
 
     def create_widgets(self):
         
@@ -627,7 +656,7 @@ class MainWindow(tk.Tk):
         self.show_grid_button = tk.Checkbutton(self.view_settings_frame, text="Show Grid", variable= self.view_setting_buffer[4], command=self.view_toggle)
         self.show_grid_button.pack(fill=tk.X)
         #Create a button to update the plot, put it in the view_settings_frame
-        self.update_plot_button = tk.Button(self.view_settings_frame, text="Update Plot", command=self.refresh_plot)
+        self.update_plot_button = tk.Button(self.view_settings_frame, text="Update Plot", command=self.update_plt_)
         self.update_plot_button.pack()
         
         #Padding it with a separator
@@ -672,8 +701,7 @@ class MainWindow(tk.Tk):
     def new(self):
         #Clear all charges
         self.EF.charges = []
-        self.setup_plot()
-        self.setup_ef()
+        #self.setup_plot()
         self.update_plot()
         self.refresh_plot()
         pass

@@ -76,6 +76,7 @@ def process_charge(queue,args):
                 return [xs, ys, start_charge]
 class Field:
     eps0 = 1
+    cancel = False
     def __init__(self):
         self.charges=[]
         self.min_charges= None
@@ -159,10 +160,8 @@ class Field:
         
         
         args = [[self.charges_array.copy(), (C.q, C.pos), lim,self.R,int(self.num_lines * abs(C.q) / self.min_charges)] for C in self.charges]
-        #use mp process to calculate, but do not use pool
-        #because pool will copy the whole class, which is not necessary
-        #if number of charges is < 4, do not use mp
-        if len(self.charges) > 4:
+        #if number of charges is < 6, do not use mp
+        if len(self.charges) > 3:
             q = mp.Queue()
             processes = [mp.Process(target=process_charge, args=(q, arg)) for arg in args]
             for p in processes:
