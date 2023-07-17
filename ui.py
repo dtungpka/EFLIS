@@ -18,11 +18,14 @@ import webbrowser
 import json
 import os
 #The path to .exe file when using pyinstaller, not the temp folder
-basedir =  os.getcwd()
+import sys
 
 
-
-
+if getattr(sys, 'frozen', False):
+    basedir = os.path.dirname(sys.executable)
+elif __file__:
+    basedir = os.path.dirname(__file__)
+print(basedir)
 LANG = 0
 new_lang = 0
 ver = "1.2-alpha"
@@ -595,7 +598,7 @@ class MainWindow(tk.Tk):
         #New, Open, Save,Export, Exit
 
         self.file_menu.add_command(label="New", command=self.new)
-        self.file_menu.add_command(label="Open", command=self.open)
+        self.file_menu.add_command(label="Open", command=self.ask_open)
         self.file_menu.add_command(label="Save", command=self.save)
         self.file_menu.add_command(label="Export", command=self.export)
 
@@ -706,7 +709,7 @@ class MainWindow(tk.Tk):
         self.update_plot()
         self.refresh_plot()
         pass
-    def open(self):
+    def ask_open(self):
         file_name = filedialog.askopenfilename(filetypes=[("EFLIS Template", "*.et")])
         if file_name:
             with open(file_name, 'r') as f:
@@ -715,7 +718,16 @@ class MainWindow(tk.Tk):
                 json_to_settings(d['Settings'])
                 self.EF.eps0 = d['eps0']
                 self.refresh_plot()
-        pass
+    def open(self, file_name):
+        if os.path.isfile(file_name):
+            with open(file_name, 'r') as f:
+                d = json.load(f)
+                self.EF.from_dict(d['Charges'])
+                json_to_settings(d['Settings'])
+                self.EF.eps0 = d['eps0']
+                self.refresh_plot()
+        else:
+            messagebox.showerror("Error", "File not found")
         
     def save(self):
         d = {'Charges':self.EF.get_dict(), 'Settings':settings_to_json(),'eps0':self.EF.eps0}
@@ -765,6 +777,15 @@ class MainWindow(tk.Tk):
 
 
 if __name__ == "__main__":
+    #Get sys arguments, example of regedit: python "C:\<whatever>\fooOpener.py" %1
+    #sys.argv[0] is the path of the python file
+    path = None
+    print(sys.argv)
+    
     window = MainWindow()
+    if len(sys.argv) > 1:
+        path = sys.argv[1]
+        window.open(path)
+
     window.mainloop()
     pass

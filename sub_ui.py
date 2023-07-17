@@ -8,7 +8,10 @@ import matplotlib.pyplot as plt
 import math
 import os
 
-basedir = os.getcwd()
+if getattr(sys, 'frozen', False):
+    basedir = os.path.dirname(sys.executable)
+elif __file__:
+    basedir = os.path.dirname(__file__)
 class EntryPopup(ttk.Entry):
     def __init__(self, parent, iid, column, text,index,Field, **kw):
         ttk.Style().configure('pad.TEntry', padding='1 1 1 1')
@@ -76,7 +79,7 @@ class EditChargeWindow(tk.Toplevel):
         self.Field = Field
         self.title("Edit Charges")
         self.iconbitmap(os.path.join(basedir,"data","icon.ico"))
-        self.geometry("600x500")
+        self.geometry("650x500")
         self.resizable(False,False)
         self.protocol("WM_DELETE_WINDOW",self.close)
         

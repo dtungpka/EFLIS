@@ -6,6 +6,11 @@ from itertools import product
 from quantiphy import Quantity
 import time
 import multiprocessing as mp
+mp.freeze_support()
+
+
+
+
 class Charge:
     def __init__(self, q, pos):
         self.q=q
@@ -161,7 +166,7 @@ class Field:
         
         args = [[self.charges_array.copy(), (C.q, C.pos), lim,self.R,int(self.num_lines * abs(C.q) / self.min_charges)] for C in self.charges]
         #if number of charges is < 6, do not use mp
-        if len(self.charges) > 3:
+        if len(self.charges) > 30:
             q = mp.Queue()
             processes = [mp.Process(target=process_charge, args=(q, arg)) for arg in args]
             for p in processes:
