@@ -700,7 +700,8 @@ class MainWindow(tk.Tk):
         settings.show_grid = self.view_setting_buffer[4].get() == 1
         pass
     def open_charge_setting_window(self):
-        charge_window = EditChargeWindow(self,self.EF)
+        print(basedir)
+        charge_window = EditChargeWindow(self,self.EF,basedir)
     def new(self):
         #Clear all charges
         self.EF.charges = []

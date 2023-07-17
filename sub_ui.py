@@ -6,12 +6,9 @@ from tkinter import ttk
 from tkinter import filedialog
 import matplotlib.pyplot as plt
 import math
+import sys
 import os
 
-if getattr(sys, 'frozen', False):
-    basedir = os.path.dirname(sys.executable)
-elif __file__:
-    basedir = os.path.dirname(__file__)
 class EntryPopup(ttk.Entry):
     def __init__(self, parent, iid, column, text,index,Field, **kw):
         ttk.Style().configure('pad.TEntry', padding='1 1 1 1')
@@ -74,10 +71,11 @@ class EntryPopup(ttk.Entry):
         # returns 'break' to interrupt default key-bindings
         return 'break'
 class EditChargeWindow(tk.Toplevel):
-    def __init__(self,master,Field: ef.Field):
+    def __init__(self,master,Field: ef.Field,basedir):
         super().__init__(master)
         self.Field = Field
         self.title("Edit Charges")
+        print("basedir",basedir)
         self.iconbitmap(os.path.join(basedir,"data","icon.ico"))
         self.geometry("650x500")
         self.resizable(False,False)
