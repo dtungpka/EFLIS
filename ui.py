@@ -25,7 +25,7 @@ basedir =  os.getcwd()
 
 LANG = 0
 new_lang = 0
-ver = "1.2"
+ver = "1.2-alpha"
 #Create a class, act as main window, inherit from tk.Tk this windows can resize and the element
 #inside will resize too.
 
@@ -415,7 +415,7 @@ class MainWindow(tk.Tk):
         self.title("Electric Field Line Interactive Simulator (EFLIS) v" + ver)
         #set icon to icon.ico
         self.iconbitmap(os.path.join(basedir,"data","icon.ico"))
-        self.geometry("860x700")
+        self.geometry("860x800")
         self.resizable(True, True)
         self.view_setting_buffer = [tk.IntVar(), tk.IntVar(), tk.IntVar(), tk.IntVar(), tk.IntVar()]
         #set the view settings to the default value
@@ -701,6 +701,7 @@ class MainWindow(tk.Tk):
     def new(self):
         #Clear all charges
         self.EF.charges = []
+        self.EF.charges_array = np.zeros((0,3))
         #self.setup_plot()
         self.update_plot()
         self.refresh_plot()

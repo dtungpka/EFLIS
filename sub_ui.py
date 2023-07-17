@@ -139,7 +139,7 @@ class EditChargeWindow(tk.Toplevel):
         self.info_label_frame.grid_columnconfigure(2,weight=1)
         self.info_label_frame.grid_columnconfigure(3,weight=1)
 
-        self.info_label = tk.Label(self.info_label_frame,text="To calculate the force on a charge, click on the charge in the table")
+        self.info_label = tk.Label(self.info_label_frame,text="To calculate the force on a charge,\n click on the charge in the table")
         self.info_label.grid(row=0,column=0,columnspan=4,sticky=tk.NSEW)
 
         self.info_label_fx = tk.Label(self.info_label_frame,text="Fx: ")
